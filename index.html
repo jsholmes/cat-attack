@@ -75,9 +75,9 @@ body{font-family:var(--display);touch-action:none;user-select:none;-webkit-user-
 </div>
 <div class="overlay" id="start">
   <h1>dragon killers</h1>
-  <p>Steer Cat Attack around the board. Eat the little dragons and snake eggs to get bigger. Watch out for the dragon snake! It keeps growing. If it gets a bit bigger than you, it can eat you, and the game is over! If you're a bit bigger, eat it! If you're the same size, nobody can eat. Every dragon you crunch brings a new, harder dragon with its own trick, and a new level. The glowing egg makes you GiGantic. Eat 2 small snakes and you get faster!</p>
+  <p>Steer Cat Attack around the board. Eat the little dragons and snake eggs to get bigger. Watch out for the dragon snake! It keeps growing. If it gets a bit bigger than you, it can eat you, and the game is over! If you're a bit bigger, eat it! If you're the same size, nobody can eat. Every dragon you crunch brings a new, harder dragon with its own trick, and a new level. The glowing egg makes you GiGantic. Eat 2 small snakes and you get faster! Big snakes roam the board too: eat the ones with green numbers, run from the red ones!</p>
   <button class="play" id="playBtn">Play ▶</button>
-  <p class="small">Drag your finger (or mouse) to steer. Arrow keys work too.<br>Crunch all 15 dragon bosses to win. Test version 16 · invented by Kit</p>
+  <p class="small">Drag your finger (or mouse) to steer. Arrow keys work too.<br>Crunch all 15 dragon bosses to win. Test version 17 · invented by Kit</p>
 </div>
 <div class="overlay" id="end" hidden>
   <h1 id="endTitle">you won (Rrunch!</h1>
@@ -86,6 +86,7 @@ body{font-family:var(--display);touch-action:none;user-select:none;-webkit-user-
   <ul class="tally">
     <li><span>eggs &amp; little dragons</span><b id="endEggs">0</b></li>
     <li><span>small snakes (3 each)</span><b id="endMinis">0</b></li>
+    <li><span>big snakes (5 each)</span><b id="endBigs">0</b></li>
     <li><span>dragon snakes crunched (10 each)</span><b id="endDragons">0</b></li>
     <li><span>level</span><b id="endLevel">1</b></li>
     <li><span>biggest size</span><b id="endBig">0</b></li>
@@ -103,7 +104,8 @@ const LINE="#e2506b",DARK="#cf2645",SOFT="#ef8fa1",PAPER="#fffefb",GOLD="#f2b632
 let W=1000,H=800,scale=1,dpr=1;
 // Kit 2026-11-12: "make the bord so you cant see the holl thing". The board (W x H) is now bigger than the view (VW x VH),
 // and the view follows Cat Attack around. Board size is a guess: about 2 iPad screens wide and 2 tall.
-const BOARD_W=2400,BOARD_H=1600;let VW=1000,VH=800,camX=0,camY=0;
+// Kit 2026-11-12: "make the bord bigger" -> 3600 x 2400 (was 2400 x 1600; the size is a guess).
+const BOARD_W=3600,BOARD_H=2400;let VW=1000,VH=800,camX=0,camY=0;
 function resize(){dpr=Math.min(2,window.devicePixelRatio||1);const cw=innerWidth,ch=innerHeight;cv.width=cw*dpr;cv.height=ch*dpr;
   VH=800;VW=Math.max(340,Math.min(1600,VH*cw/ch));scale=Math.min(cw/VW,ch/VH);W=BOARD_W;H=BOARD_H;}
 function camFollow(snap){const tx=Math.max(0,Math.min(W-VW,cat.x-VW/2)),ty=Math.max(0,Math.min(H-VH,cat.y-VH/2));
@@ -171,7 +173,7 @@ function spawnDragon(){let best=[80,140],bd=-1;
   for(let i=0;i<260;i++)dragon.trail.push({x:dragon.x-Math.cos(dragon.a)*i*3,y:dragon.y-Math.sin(dragon.a)*i*3});
   setDragonKind(dragonsEaten);dragon.len=Math.max(300,Math.min(maxLen(),cat.len*DK.start));for(let i=dragon.trail.length;i<dragon.len/3+10;i++)dragon.trail.push({x:dragon.x-Math.cos(dragon.a)*i*3,y:dragon.y-Math.sin(dragon.a)*i*3});dragon.speed=DK.speed;dragon.alive=true;dragon.mouth=0;dragon.face=Math.cos(dragon.a)<0?-1:1;
   if(!dragon.wing1){dragon.wing1=scribble(14,30,71,5);dragon.wing2=scribble(15,32,133,5)}
-  checkpoint={level,dragonsEaten,score,minisEaten,speedUps,len:cat.len};
+  checkpoint={level,dragonsEaten,score,minisEaten,speedUps,bigsEaten,len:cat.len};
   dragon.trickT=3;dragon.dashT=0;dragon.roarT=0;dragon.chargeT=0;dragon.suckT=0;dragon.popT=0;dragon.mouth2=0;dragon.alpha=DK.trick==="teleport"?.6:1;fireballs.length=0;strikes.length=0;lava.length=0;
   popS(dragonsEaten?"Level "+level+": "+DK.says+"!":DK.says,150,Math.min(36,VW/13),EDARK,2.6)}
 // John 2026-11-08: if you're about the same size, nobody can eat. You have to be a little bit bigger (20%, a guess).
@@ -302,18 +304,18 @@ function eatDragon(){dragon.alive=false;fireballs.length=0;strikes.length=0;lava
   if(dragonsEaten>=BOSSES){updateHud();{const g=gameId;setTimeout(()=>{if(g===gameId)gameOver(true)},900)};return}
   pop("CRUNCH!",dragon.x,dragon.y-30,46,DARK,1.2);popS("Level up!",190,Math.min(48,VW/8),DARK,1.8);updateHud()}
 // John/Kit 2026-11-08: if the dragon eats you, you lose (replaces "you lost a level")
-function dragonEatsYou(){if(!running)return;dragon.chompT=.4;dragon.mouth=1;cat.mouth=0;cat.giantT=0;cat.kTarget=1;
+function dragonEatsYou(){if(!running)return;lostTo="dragon";dragon.chompT=.4;dragon.mouth=1;cat.mouth=0;cat.giantT=0;cat.kTarget=1;
   for(let i=0;i<14;i++){const a=Math.random()*Math.PI*2;crumbs.push({x:cat.x,y:cat.y,vx:Math.cos(a)*(80+Math.random()*120),vy:Math.sin(a)*(80+Math.random()*120)-50,t:0,r:2+Math.random()*3})}
   pop("CHOMP!",cat.x,cat.y-30,46,EDARK,1.2);updateHud();running=false;{const g=gameId;setTimeout(()=>{if(g!==gameId)return;running=true;gameOver(false)},900)}}
-function totalScore(){return score+dragonsEaten*10+minisEaten*3}
+function totalScore(){return score+dragonsEaten*10+minisEaten*3+bigsEaten*5}
 function gameOver(won){if(!running)return;running=false;down=false;target=null;
   const total=totalScore();let best=0;try{best=+localStorage.getItem("catattack-best")||0;if(total>best)localStorage.setItem("catattack-best",String(total))}catch(e){}
   const el=document.getElementById("end");
-  document.getElementById("endTitle").textContent=won?"you won (Rrunch!":"the dragon got you!";
-  document.getElementById("endSub").textContent=won?"you beat all the bosses.":"Try again and get bigger than the dragon.";
+  document.getElementById("endTitle").textContent=won?"you won (Rrunch!":lostTo==="big"?"a big snake got you!":"the dragon got you!";
+  document.getElementById("endSub").textContent=won?"you beat all the bosses.":lostTo==="big"?"Run from the big snakes with red numbers. Eat the green ones!":"Try again and get bigger than the dragon.";
   document.getElementById("endScore").textContent=total;
   document.getElementById("endEggs").textContent=score;
-  document.getElementById("endDragons").textContent=dragonsEaten+" of "+BOSSES;document.getElementById("endMinis").textContent=minisEaten;
+  document.getElementById("endDragons").textContent=dragonsEaten+" of "+BOSSES;document.getElementById("endMinis").textContent=minisEaten;document.getElementById("endBigs").textContent=bigsEaten;
   document.getElementById("endLevel").textContent=Math.min(level,BOSSES);
   document.getElementById("endBig").textContent=Math.round(biggest/20);
   document.getElementById("endBest").textContent=total>best?"New best score!":"Best score: "+best;
@@ -326,15 +328,15 @@ let gameId=0,checkpoint=null;
 function newGame(cp){gameId++;if(!cp)checkpoint=null;score=0;dragonsEaten=0;level=1;setDragonKind(0);biggest=0;safeT=0;sinceGlow=0;eatenSinceGlow=0;
   cat.x=W/2;cat.y=H/2;cat.a=0;cat.len=420;cat.k=1;cat.kTarget=1;cat.giantT=0;cat.mouth=0;cat.chompT=0;cat.chewT=0;cat.frozenT=0;cat.trail=[];
   for(let i=0;i<220;i++)cat.trail.push({x:cat.x-i*3,y:cat.y});
-  items.length=0;fillBoard();pops.length=0;crumbs.length=0;fireballs.length=0;strikes.length=0;lava.length=0;dragon.alive=false;dragon.respawnT=1.2;minis.length=0;minisEaten=0;speedUps=0;miniRespawn=1.5;
-  if(cp){level=cp.level;dragonsEaten=cp.dragonsEaten;score=cp.score;minisEaten=cp.minisEaten;speedUps=cp.speedUps;cat.len=cp.len;setDragonKind(dragonsEaten);safeT=2;popS("Level "+level+" again!",190,Math.min(48,VW/8),DARK,1.6)}
+  items.length=0;fillBoard();pops.length=0;crumbs.length=0;fireballs.length=0;strikes.length=0;lava.length=0;dragon.alive=false;dragon.respawnT=1.2;minis.length=0;minisEaten=0;speedUps=0;miniRespawn=1.5;bigs.length=0;bigsEaten=0;bigRespawn=2.5;lostTo="dragon";
+  if(cp){level=cp.level;dragonsEaten=cp.dragonsEaten;score=cp.score;minisEaten=cp.minisEaten;speedUps=cp.speedUps;bigsEaten=cp.bigsEaten||0;cat.len=cp.len;setDragonKind(dragonsEaten);safeT=2;popS("Level "+level+" again!",190,Math.min(48,VW/8),DARK,1.6)}
   document.getElementById("score").textContent=String(score);updateHud();
-  camFollow(true);document.getElementById("end").hidden=true;document.getElementById("start").hidden=true;running=true;audio();tune(true)}
+  for(let i=0;i<bigCount();i++)spawnBig();camFollow(true);document.getElementById("end").hidden=true;document.getElementById("start").hidden=true;running=true;audio();tune(true)}
 // ---------- small snakes (John 2026-11-10) ----------
 // They are not bosses. Eat 2 of them and you get faster for the rest of that game. Their look is a guess for Kit.
 const MINI_COLORS=[["#6f8a1f","#c9dc8f"],["#9a6a2e","#e8c99a"],["#1f8f8f","#9fdcdc"]];
 const minis=[];let minisEaten=0,speedUps=0,miniRespawn=1.5;const MAX_SPEEDUPS=5;
-const miniCount=()=>8; // more small snakes now that the board is bigger
+const miniCount=()=>12; // more small snakes now that the board is bigger
 function spawnMini(){let x,y,tries=0;do{const side=Math.floor(Math.random()*4);
     if(side==0){x=40;y=120+Math.random()*(H-160)}else if(side==1){x=W-40;y=120+Math.random()*(H-160)}else if(side==2){x=40+Math.random()*(W-80);y=110}else{x=40+Math.random()*(W-80);y=H-40}tries++}
   while(Math.hypot(x-cat.x,y-cat.y)<300&&tries<12);
@@ -385,6 +387,94 @@ function drawMinis(t){minis.forEach(m=>{const S=samplesOf(m);if(S.length<3)retur
   ctx.fillStyle=PAPER;ctx.beginPath();ctx.ellipse(2,0,10,7.5,0,0,7);ctx.fill();sketch(m.line,1.5,()=>ctx.ellipse(2,0,10,7.5,0,0,7));
   ctx.fillStyle="#2a2a2a";[-3.6,3.6].forEach(y=>{ctx.beginPath();ctx.arc(5,y,1.6,0,7);ctx.fill()});
   ctx.restore()})}
+
+// ---------- big snakes (Kit 2026-11-12: "mace their be more big gies") ----------
+// Big non-boss snakes that roam the big board. Some are smaller than you (eat them!), some are bigger (run!).
+// A bigger one that sees you chases you for a while, and if its mouth touches you, it eats you. All numbers here are guesses.
+const BIG_COLORS=[["#b5561b","#f3c49b"],["#2f6db0","#a9c8ec"],["#7a4fa6","#d3bdea"],["#3a8a4a","#b5ddb9"]];
+const bigs=[];let bigsEaten=0,bigRespawn=3;const bigCount=()=>5;
+const bigCanEatYou=b=>b.len>catBig()*EAT_MARGIN, youCanEatBig=b=>catBig()>b.len*EAT_MARGIN;
+const bigWidth=b=>BW*1.35*(1+Math.min(.7,(b.len-300)/1400));
+const bigW=(b,d)=>{const w=bigWidth(b),f=d/b.len;return f<.7?w:w*Math.max(.2,(1-f)/.3)};
+function spawnBig(){let best=null,bd=-1;
+  for(let i=0;i<16;i++){const c=[60+Math.random()*(W-120),140+Math.random()*(H-200)],d=Math.hypot(c[0]-cat.x,c[1]-cat.y),ok=d>VW*.55+200;
+    if(ok&&!best){best=c;bd=d}else if(!best&&d>bd){bd=d;best=c}}
+  // about half are smaller than you and half are bigger
+  const r=Math.random(),k=r<.5?.5+Math.random()*.25:1.3+Math.random()*.35;const len=Math.max(260,Math.min(maxLen(),cat.len*k));
+  const x=best[0],y=best[1],a=Math.random()*Math.PI*2,c=BIG_COLORS[Math.floor(Math.random()*BIG_COLORS.length)];
+  const b={x,y,a,len,speed:135+Math.random()*20,trail:[],line:c[0],soft:c[1],think:0,goal:null,tongue:Math.random()*6,dying:0,mode:"food",chaseT:0,restT:6,bumpT:0,chompT:0};
+  for(let i=0;i<len/3+12;i++)b.trail.push({x:x-Math.cos(a)*i*3,y:y-Math.sin(a)*i*3});bigs.push(b)}
+function updateBigs(dt){
+  if(bigs.filter(b=>!b.dying).length<bigCount()){bigRespawn-=dt;if(bigRespawn<=0){spawnBig();bigRespawn=5}}
+  const B=catBite(),C=bodySamples();
+  for(let i=bigs.length-1;i>=0;i--){const b=bigs[i];
+    if(b.dying){b.dying-=dt;b.len=Math.max(20,b.len*(1-dt*3));if(b.dying<=0)bigs.splice(i,1);continue}
+    b.tongue+=dt*8;b.think-=dt;b.bumpT=Math.max(0,b.bumpT-dt);b.restT=Math.max(0,b.restT-dt);if(b.chompT>0)b.chompT-=dt;
+    const dc=Math.hypot(cat.x-b.x,cat.y-b.y);
+    if(b.mode==="chase"){b.chaseT-=dt;if(b.chaseT<=0||!bigCanEatYou(b)||dc>620||safeT>0||!running){b.mode="food";b.restT=4}}
+    if(b.think<=0){b.think=.4;
+      if(b.mode!=="chase"){
+        const seen=b.x>camX&&b.x<camX+VW&&b.y>camY+60&&b.y<camY+VH; // only chases you when you can see it coming
+        if(bigCanEatYou(b)&&seen&&dc<380&&b.restT<=0&&safeT<=0&&running){b.mode="chase";b.chaseT=4.5;pop("uh oh!",b.x,b.y-40,26,"#d0283c",1)}
+        else if(youCanEatBig(b)&&dc<260)b.mode="flee";
+        else{b.mode="food";let best=null,bd=1e9;items.forEach(it=>{if(it.kind==="glow")return;const d=Math.hypot(it.x-b.x,it.y-b.y);if(d<bd){bd=d;best=it}});b.goal=best}}}
+    let want;
+    if(b.mode==="chase")want=Math.atan2(cat.y-b.y,cat.x-b.x);
+    else if(b.mode==="flee")want=Math.atan2(b.y-cat.y,b.x-cat.x)+Math.sin(b.tongue*.3)*.4;
+    else if(b.goal&&items.includes(b.goal))want=Math.atan2(b.goal.y-b.y,b.goal.x-b.x);
+    else want=b.a+Math.sin(b.tongue*.2)*.8;
+    let d=want-b.a;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;const mt=2.6*dt;b.a+=Math.max(-mt,Math.min(mt,d));
+    const sp=b.speed*(b.mode==="chase"?1.05:b.mode==="flee"?1.1:1);b.x+=Math.cos(b.a)*sp*dt;b.y+=Math.sin(b.a)*sp*dt;
+    const mg=24,top=70;
+    if(b.x<mg){b.x=mg;b.a=Math.PI-b.a}if(b.x>W-mg){b.x=W-mg;b.a=Math.PI-b.a}
+    if(b.y<top+mg*.5){b.y=top+mg*.5;b.a=-b.a}if(b.y>H-mg){b.y=H-mg;b.a=-b.a}
+    const h=b.trail[0];if(Math.hypot(b.x-h.x,b.y-h.y)>2){b.trail.unshift({x:b.x,y:b.y});if(b.trail.length>1200)b.trail.length=1200}
+    // big snakes eat eggs and small snakes too, and grow (but not forever)
+    const cap=Math.min(maxLen(),Math.max(b.len,cat.len*1.8));
+    for(let j=items.length-1;j>=0;j--){const it=items[j];if(it.kind!=="glow"&&Math.hypot(it.x-b.x,it.y-b.y)<it.r+bigWidth(b)*.6){items.splice(j,1);b.len=Math.min(cap,b.len+14);b.chompT=.2}}
+    minis.forEach(m=>{if(!m.dying&&Math.hypot(m.x-b.x,m.y-b.y)<bigWidth(b)*.6+8){m.dying=.5;b.len=Math.min(cap,b.len+30);b.chompT=.25;pop("nom",m.x,m.y-20,24,b.line,.7)}});
+    const S=samplesOf(b);
+    // you eat it if you're a bit bigger and your face touches any part of it
+    let touching=false,near=null,nd=1e9;for(const p of S){const dd=Math.hypot(p.x-B.x,p.y-B.y);if(dd<nd){nd=dd;near=p}if(dd<B.r+bigW(b,p.d)/2)touching=true}
+    if(running&&touching&&youCanEatBig(b)){eatBig(b);continue}
+    if(running&&touching&&!bigCanEatYou(b)){ // same size (or it's bigger but you hit its body): slide along it like a wall
+      const need=B.r+bigW(b,near.d)/2+1;if(nd<need){const ux=(B.x-near.x)/(nd||1),uy=(B.y-near.y)/(nd||1);cat.x+=ux*(need-nd);cat.y+=uy*(need-nd);const ch=cat.trail[0];if(ch){ch.x=cat.x;ch.y=cat.y}}
+      if(b.bumpT<=0){b.bumpT=1.6;pop("same size! nobody can eat",cat.x,cat.y-50,24,b.line,1.1);boing()}}
+    // it eats you if it's a bit bigger and its mouth touches any part of you
+    if(running&&bigCanEatYou(b)&&safeT<=0){const hr=bigWidth(b)*.55;for(const q of C){if(Math.hypot(q.x-b.x,q.y-b.y)<hr+widthAt(q.d)/2){bigEatsYou(b);break}}}
+    if(!running)continue;
+    // the boss can eat big snakes that are a bit smaller than it
+    if(dragon.alive&&dragon.len>b.len*EAT_MARGIN&&S.some(p=>Math.hypot(p.x-dragon.x,p.y-dragon.y)<16+bigW(b,p.d)/2)){b.dying=.5;dragon.len=Math.min(maxLen(),dragon.len+b.len*.2);dragon.chompT=.3;pop("CHOMP",b.x,b.y-24,28,EDARK,.8)}}}
+function eatBig(b){b.dying=.5;bigsEaten++;cat.len=Math.min(maxLen(),cat.len+b.len*.25);cat.chompT=.32;cat.chewT=.9;crunch();
+  for(let i=0;i<14;i++){const a=Math.random()*Math.PI*2;crumbs.push({x:b.x,y:b.y,vx:Math.cos(a)*(80+Math.random()*120),vy:Math.sin(a)*(80+Math.random()*120)-50,t:0,r:2+Math.random()*3,c:b.soft})}
+  pop("CRUNCH!",b.x,b.y-30,40,DARK,1.2);updateHud()}
+let lostTo="dragon";
+function bigEatsYou(b){if(!running)return;b.chompT=.4;cat.mouth=0;cat.giantT=0;cat.kTarget=1;lostTo="big";
+  for(let i=0;i<14;i++){const a=Math.random()*Math.PI*2;crumbs.push({x:cat.x,y:cat.y,vx:Math.cos(a)*(80+Math.random()*120),vy:Math.sin(a)*(80+Math.random()*120)-50,t:0,r:2+Math.random()*3})}
+  pop("CHOMP!",cat.x,cat.y-30,46,b.line,1.2);updateHud();running=false;{const g=gameId;setTimeout(()=>{if(g!==gameId)return;running=true;gameOver(false)},900)}}
+function drawBigs(t){bigs.forEach(b=>{const S=samplesOf(b);if(S.length<3)return;
+  const vis=S.some(p=>p.x>camX-60&&p.x<camX+VW+60&&p.y>camY-60&&p.y<camY+VH+60);if(!vis)return;
+  ctx.save();if(b.dying)ctx.globalAlpha=Math.max(0,b.dying/.5);
+  ctx.fillStyle=b.soft;for(let i=S.length-1;i>=0;i--){ctx.beginPath();ctx.arc(S[i].x+.6,S[i].y+.5,bigW(b,S[i].d)/2+2,0,7);ctx.fill()}
+  ctx.fillStyle=b.line;for(let i=S.length-1;i>=0;i--){ctx.beginPath();ctx.arc(S[i].x,S[i].y,bigW(b,S[i].d)/2+1.6,0,7);ctx.fill()}
+  ctx.fillStyle=PAPER;for(let i=S.length-1;i>=0;i--){ctx.beginPath();ctx.arc(S[i].x,S[i].y,bigW(b,S[i].d)/2,0,7);ctx.fill()}
+  // big round spots down the back
+  alongBody(S,9,.08,.8,(p,nx,ny,tx,ty)=>{const r=bigW(b,p.d)/2*.42;ctx.fillStyle=b.soft;ctx.beginPath();ctx.arc(p.x,p.y,r,0,7);ctx.fill();sketch(b.line,1.3,()=>ctx.arc(p.x,p.y,r,0,7))});
+  // head: a wide head with two eyes, a mouth that opens when it chases you, and a tongue
+  const hw=bigWidth(b)/22;ctx.translate(S[0].x,S[0].y);ctx.rotate(b.a);ctx.scale(hw,hw);
+  const open=b.mode==="chase"&&b.chompT<=0?.6+.4*Math.abs(Math.sin(b.tongue*.8)):0;
+  if(!open&&Math.sin(b.tongue)>.2&&!b.dying)sketch("#d23a3a",1.8,()=>{ctx.moveTo(14,0);ctx.lineTo(25,0);ctx.lineTo(30,-4);ctx.moveTo(25,0);ctx.lineTo(30,4)});
+  ctx.fillStyle=PAPER;ctx.beginPath();ctx.ellipse(3,0,15,12.5,0,0,7);ctx.fill();sketch(b.line,2,()=>ctx.ellipse(3,0,15,12.5,0,0,7));
+  if(open){ctx.fillStyle=MOUTH;ctx.beginPath();ctx.moveTo(4,0);ctx.lineTo(18,-8*open);ctx.lineTo(18,8*open);ctx.closePath();ctx.fill();
+    ctx.fillStyle=PAPER;[-1,1].forEach(sg=>{ctx.beginPath();ctx.moveTo(13,sg*5.5*open);ctx.lineTo(15,sg*2*open);ctx.lineTo(17,sg*6.5*open);ctx.fill()})}
+  ctx.fillStyle="#2a2a2a";[-5.5,5.5].forEach(y=>{ctx.beginPath();ctx.arc(6,y,2.4,0,7);ctx.fill()});
+  if(b.mode==="chase")sketch("#2a2a2a",1.6,()=>{[-1,1].forEach(sg=>{ctx.moveTo(2,sg*9);ctx.lineTo(10,sg*4)})}); // angry eyebrows
+  ctx.restore();
+  // its size, like the numbers at the top: red = it can eat you, green = you can eat it
+  if(b.dying)return;const n=Math.round(b.len/20),col=bigCanEatYou(b)?"#d0283c":youCanEatBig(b)?"#2f8a3c":"#777";
+  ctx.save();ctx.font="22px 'Gochi Hand', cursive";ctx.textAlign="center";const tx=S[0].x,ty=S[0].y-bigWidth(b)*.9-16;
+  const tw=ctx.measureText(String(n)).width+16;ctx.fillStyle="rgba(255,254,251,.9)";ctx.beginPath();ctx.ellipse(tx,ty-7,tw/2,14,0,0,7);ctx.fill();
+  sketch(col,1.8,()=>ctx.ellipse(tx,ty-7,tw/2,14,0,0,7));ctx.fillStyle=col;ctx.fillText(String(n),tx,ty+1);ctx.restore()})}
 function updateHud(){biggest=Math.max(biggest,catBig());const sd=document.getElementById("spd");if(sd)sd.textContent="⚡".repeat(speedUps);const l=document.getElementById("lvl");if(l)l.textContent="Level "+level;
   const me=document.getElementById("szMe"),dr=document.getElementById("szDragon");if(!me)return;
   const a=Math.round(catBig()/20),b=dragon.alive?Math.round(dragon.len/20):0;me.textContent=a;dr.textContent=dragon.alive?b:"–";
@@ -685,7 +775,7 @@ function spawn(kind){const m=60;let x,y,tries=0;do{x=m+Math.random()*(W-2*m);y=m
   if(kind==="glow")items.push({kind,x,y,r:20,seed,ring:scribble(15,20,seed,1),pts:scribble(13,18,seed+3,4)});
   else if(kind==="dragon")items.push({kind,x,y,r:26,seed,vx:(Math.random()-.5)*36,vy:(Math.random()-.5)*36,pts:scribble(12,24,seed,5),pts2:scribble(13,25,seed+50,5)});
   else{const sz=Math.random();const rx=sz<.35?5+Math.random()*2:sz<.75?12+Math.random()*2:17+Math.random()*3,ry=rx*(1.3+hash(seed)*.3);items.push({kind:"egg",x,y,r:ry+3,seed,v:rx>9&&Math.random()<.7,rx,ry,pts:scribble(rx,ry,seed,rx<8?5:6),ring:scribble(rx,ry,seed+1,1.05)})}}
-function fillBoard(){while(items.filter(i=>i.kind!=="glow").length<30)spawn(Math.random()<.35?"dragon":"egg")}
+function fillBoard(){while(items.filter(i=>i.kind!=="glow").length<60)spawn(Math.random()<.35?"dragon":"egg")}
 function path(pts,x,y,sx=1,rot=0){return()=>{ctx.save();ctx.translate(x,y);ctx.rotate(rot);ctx.scale(sx,1);pts.forEach(([a,b],i)=>i?ctx.lineTo(a,b):ctx.moveTo(a,b));ctx.restore()}}
 function drawItem(it,t){
   if(it.kind==="egg"){sketch(SOFT,2,path(it.pts,it.x,it.y));ctx.save();ctx.globalAlpha=.7;sketch(LINE,1.5,path(it.ring,it.x,it.y));ctx.restore();
@@ -781,7 +871,7 @@ function update(dt,t){
     if(it.kind==="glow"){cat.kTarget=VW<600?1.9:2.4;cat.giantT=7;tune(true);popS("you become GiGantic!",170,Math.min(46,VW/9),DARK,1.8)}
     else{score++;eatenSinceGlow++;document.getElementById("score").textContent=score;cat.len=Math.min(maxLen(),cat.len+22);crunch();pop(["Rrunch!","om nom nom","CRUNCH!"][score%3],it.x,it.y-24)}}}
   fillBoard();
-  updateDragon(dt);updateMinis(dt);updateHud();
+  updateDragon(dt);updateMinis(dt);if(running)updateBigs(dt);updateHud();
   sinceGlow+=dt;if(!items.some(i=>i.kind==="glow")&&cat.giantT<=0&&(eatenSinceGlow>=6||sinceGlow>22)){spawn("glow");sinceGlow=0;eatenSinceGlow=0}
   crumbs.forEach(c=>{c.t+=dt;c.x+=c.vx*dt;c.y+=c.vy*dt;c.vy+=260*dt});for(let i=crumbs.length-1;i>=0;i--)if(crumbs[i].t>.5)crumbs.splice(i,1);
   pops.forEach(p=>{p.t+=dt;p.y-=dt*40});for(let i=pops.length-1;i>=0;i--)if(pops[i].t>pops[i].life)pops.splice(i,1);
@@ -798,7 +888,7 @@ function drawBoard(){ctx.fillStyle=PAPER;ctx.fillRect(0,0,W,H);
 function frame(t){
   const cw=innerWidth,ch=innerHeight;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle=PAPER;ctx.fillRect(0,0,cw,ch);
   ctx.translate((cw-VW*scale)/2,(ch-VH*scale)/2);ctx.scale(scale,scale);if(running)camFollow();ctx.translate(-camX,-camY);
-  drawBoard();drawLava(t);items.forEach(it=>{if(it.x>camX-60&&it.x<camX+VW+60&&it.y>camY-60&&it.y<camY+VH+60)drawItem(it,t)});drawMinis(t);drawDragon(t);if(!(safeT>0&&Math.floor(t/120)%2))drawCat(t);
+  drawBoard();drawLava(t);items.forEach(it=>{if(it.x>camX-60&&it.x<camX+VW+60&&it.y>camY-60&&it.y<camY+VH+60)drawItem(it,t)});drawMinis(t);drawBigs(t);drawDragon(t);if(!(safeT>0&&Math.floor(t/120)%2))drawCat(t);
   crumbs.forEach(c=>{ctx.fillStyle=c.c||SOFT;ctx.globalAlpha=1-c.t/.5;ctx.beginPath();ctx.arc(c.x,c.y,c.r,0,7);ctx.fill()});ctx.globalAlpha=1;
   if(cat.frozenT>0){ctx.save();ctx.globalAlpha=Math.min(1,cat.frozenT*2)*.8;sketch("#2b8fb3",2.2,()=>{const r=30*cat.k;ctx.arc(cat.x,cat.y,r,0,7);for(let k=0;k<6;k++){const a=k*Math.PI/3+.3,x=cat.x+Math.cos(a)*r,y=cat.y+Math.sin(a)*r;ctx.moveTo(x-5,y);ctx.lineTo(x+5,y);ctx.moveTo(x,y-5);ctx.lineTo(x,y+5)}});ctx.restore()}
   if(dragon.alive&&DK.trick==="dark"){const g=ctx.createRadialGradient(cat.x,cat.y,80*cat.k,cat.x,cat.y,280*cat.k);g.addColorStop(0,"rgba(18,10,32,0)");g.addColorStop(1,"rgba(18,10,32,.84)");ctx.fillStyle=g;ctx.fillRect(camX-20,camY+64,VW+40,VH);
