@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- v15 (iPad / any browser): a full standalone page that can be hosted anywhere, not just as a claude.ai artifact -->
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cat Attack">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#fffefb">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<link rel="manifest" href="manifest.json">
+<title>Cat Attack</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gochi+Hand&family=Baloo+2:wght@700;800&display=swap">
+<style>
+/* Layout: the whole screen is Kit's paper; a thin HUD strip floats on top. One deliberate paper look in both themes. */
+:root{
+  --paper:#fffefb; --pencil:#d8304f; --ink:#3a2c28; --gold:#f2b632; --edge:#e8c9cf;
+  --hand:"Gochi Hand","Comic Sans MS","Chalkboard SE",cursive;
+  --display:"Baloo 2","Trebuchet MS",system-ui,sans-serif;
+  color-scheme:light;
+}
+[hidden]{display:none!important}
+html,body{margin:0;padding:0;height:100%;background:var(--paper);color:var(--ink);overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+*{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+html{position:fixed;inset:0;top:0;left:0;right:0;bottom:0}
+body{font-family:var(--display);touch-action:none;user-select:none;-webkit-user-select:none}
+#game{position:fixed;top:0;left:0;inset:0;touch-action:none;width:100%;height:100%;display:block;background:var(--paper)}
+.hud{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;gap:12px;padding-top:calc(10px + env(safe-area-inset-top,0px));padding-bottom:6px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));pointer-events:none}
+.name{font-family:var(--hand);font-size:28px;color:var(--pencil);line-height:1}
+.lvl{font-family:var(--hand);font-size:22px;color:var(--ink);line-height:1}
+.spd{font-size:18px;line-height:1;letter-spacing:-2px;white-space:nowrap}
+.sizes{display:flex;gap:10px;font-family:var(--hand);font-size:20px;line-height:1;margin-left:auto}
+.sz{padding:3px 8px;border-radius:999px;border:2px solid transparent}
+.sz b{font-weight:400;font-size:24px}
+.sz.me{color:var(--pencil)}.sz.dr{color:var(--dc,#3f57b8)}
+.sz.me.lead{border-color:var(--pencil)}.sz.dr.lead{border-color:var(--dc,#3f57b8)}
+.count{font-family:var(--hand);font-size:28px;color:var(--ink);display:flex;align-items:center;gap:6px;line-height:1}
+.count svg{width:26px;height:30px}
+.btn{touch-action:manipulation;-webkit-appearance:none;appearance:none;padding:0;flex-shrink:0;pointer-events:auto;border:2px solid var(--edge);background:var(--paper);color:var(--ink);border-radius:999px;width:44px;height:44px;font-size:20px;cursor:pointer;display:grid;place-items:center}
+.btn.restart{width:auto;padding:0 14px;gap:6px;display:flex;align-items:center;font-family:var(--hand);font-size:22px;color:var(--pencil);border-color:var(--pencil)}
+.btn.restart span:first-child{font-size:22px}
+.btn:focus-visible,.play:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+@media (max-width:560px){.btn.restart{width:44px;padding:0;justify-content:center}.btn.restart .rl{display:none}.name{display:none}.count{font-size:22px}.sizes{font-size:16px;gap:4px}.sz b{font-size:20px}.lvl{font-size:18px}}
+.overlay{position:fixed;top:0;left:0;right:0;bottom:0;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:rgba(255,254,251,.88)}
+.overlay h1{margin:0;font-family:var(--hand);font-weight:400;font-size:clamp(46px,11vw,96px);color:var(--pencil);line-height:.95;text-wrap:balance}
+.overlay p{margin:0;font-size:18px;max-width:34ch;color:var(--ink)}
+.overlay .small{font-size:14px;color:#7b6d64}
+.score{display:flex;flex-direction:column;align-items:center;line-height:1}
+.score .lbl{font-family:var(--hand);font-size:24px;color:var(--ink)}
+.score .big{font-family:var(--hand);font-size:clamp(64px,16vw,110px);color:var(--pencil)}
+.tally{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;width:min(340px,100%);font-family:var(--hand);font-size:20px}
+.tally li{display:flex;justify-content:space-between;gap:12px;border-bottom:2px dashed var(--edge);padding-bottom:2px}
+.tally b{font-weight:400;color:var(--pencil);font-variant-numeric:tabular-nums}
+.play{touch-action:manipulation;-webkit-appearance:none;appearance:none;font-family:var(--display);font-weight:800;font-size:26px;border:0;border-radius:20px;padding:14px 34px;background:var(--pencil);color:#fff;cursor:pointer;box-shadow:0 6px 0 #962038}
+.overlay{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;justify-content:safe center;touch-action:pan-y;padding-top:12px;padding-bottom:12px}
+@media (max-height:520px){.overlay{gap:8px}.overlay h1{font-size:40px}.score .big{font-size:52px}.tally{display:none}.overlay p{font-size:15px}.play{font-size:20px;padding:10px 26px}}
+.play.alt{background:transparent;color:var(--pencil);border:2px solid var(--pencil);box-shadow:none;font-size:19px;padding:8px 22px}
+.play:active{transform:translateY(3px);box-shadow:0 3px 0 #962038}
+</style>
+
+<canvas id="game" aria-label="Cat Attack game board"></canvas>
+<div class="hud">
+  <div class="name">cat atack</div>
+  <div class="lvl" id="lvl">Level 1</div>
+  <div class="spd" id="spd" aria-label="speed ups"></div>
+  <div class="sizes" aria-live="polite"><span class="sz me">you <b id="szMe">21</b></span><span class="sz dr">dragon <b id="szDragon">–</b></span></div>
+  <div class="count" aria-live="polite"><svg viewBox="0 0 26 30" aria-hidden="true"><ellipse cx="13" cy="16" rx="10" ry="13" fill="#f6c3cc" stroke="#e2506b" stroke-width="2.5"/><path d="M8 12 L13 22 L18 12" fill="none" stroke="#cf2645" stroke-width="2"/></svg><span id="score">0</span></div>
+  <button class="btn" id="mute" aria-label="Sound on or off">🔊</button>
+</div>
+<div class="overlay" id="start">
+  <h1>dragon killers</h1>
+  <p>Steer Cat Attack around the board. Eat the little dragons and snake eggs to get bigger. Watch out for the dragon snake! It keeps growing. If it gets a bit bigger than you, it can eat you, and the game is over! If you're a bit bigger, eat it! If you're the same size, nobody can eat. Every dragon you crunch brings a new, harder dragon with its own trick, and a new level. The glowing egg makes you GiGantic. Eat 2 small snakes and you get faster!</p>
+  <button class="play" id="playBtn">Play ▶</button>
+  <p class="small">Drag your finger (or mouse) to steer. Arrow keys work too.<br>Crunch all 15 dragon bosses to win. Test version 16 · invented by Kit</p>
+</div>
+<div class="overlay" id="end" hidden>
+  <h1 id="endTitle">you won (Rrunch!</h1>
+  <p id="endSub">you beet all the bosses.</p>
+  <div class="score"><span class="lbl">Score</span><span class="big" id="endScore">0</span></div>
+  <ul class="tally">
+    <li><span>eggs &amp; little dragons</span><b id="endEggs">0</b></li>
+    <li><span>small snakes (3 each)</span><b id="endMinis">0</b></li>
+    <li><span>dragon snakes crunched (10 each)</span><b id="endDragons">0</b></li>
+    <li><span>level</span><b id="endLevel">1</b></li>
+    <li><span>biggest size</span><b id="endBig">0</b></li>
+  </ul>
+  <p class="small" id="endBest"></p>
+  <button class="play" id="retryBtn" hidden>↻ restart level <span id="retryLvl">1</span></button>
+  <button class="play" id="againBtn">Play again ▶</button>
+</div>
+
+<script>
+(()=>{
+const cv=document.getElementById("game"),ctx=cv.getContext("2d");
+// Kit's pencils: a lighter red-pink for outlines, a darker red for stripes and toes
+const LINE="#e2506b",DARK="#cf2645",SOFT="#ef8fa1",PAPER="#fffefb",GOLD="#f2b632",MOUTH="#9c1f3b";
+let W=1000,H=800,scale=1,dpr=1;
+// Kit 2026-11-12: "make the bord so you cant see the holl thing". The board (W x H) is now bigger than the view (VW x VH),
+// and the view follows Cat Attack around. Board size is a guess: about 2 iPad screens wide and 2 tall.
+const BOARD_W=2400,BOARD_H=1600;let VW=1000,VH=800,camX=0,camY=0;
+function resize(){dpr=Math.min(2,window.devicePixelRatio||1);const cw=innerWidth,ch=innerHeight;cv.width=cw*dpr;cv.height=ch*dpr;
+  VH=800;VW=Math.max(340,Math.min(1600,VH*cw/ch));scale=Math.min(cw/VW,ch/VH);W=BOARD_W;H=BOARD_H;}
+function camFollow(snap){const tx=Math.max(0,Math.min(W-VW,cat.x-VW/2)),ty=Math.max(0,Math.min(H-VH,cat.y-VH/2));
+  if(snap){camX=tx;camY=ty}else{camX+=(tx-camX)*.12;camY+=(ty-camY)*.12}}
+addEventListener("resize",resize);resize();
+// iPad: after rotating, Safari sometimes reports the old size first, so measure again a moment later
+addEventListener("orientationchange",()=>{resize();setTimeout(resize,250);setTimeout(resize,700)});
+if(window.visualViewport)visualViewport.addEventListener("resize",resize);
+
+const hash=n=>{const s=Math.sin(n*127.1+311.7)*43758.5453;return s-Math.floor(s)};
+// coloured-pencil stroke: main line plus a faint offset pass for grain
+function sketch(color,w,build){ctx.save();ctx.lineCap="round";ctx.lineJoin="round";
+  ctx.strokeStyle=color;ctx.lineWidth=w;ctx.globalAlpha*=.92;ctx.beginPath();build();ctx.stroke();
+  ctx.globalAlpha*=.38;ctx.lineWidth=w*.7;ctx.translate(w*.35,w*.25);ctx.beginPath();build();ctx.stroke();ctx.restore()}
+
+// ---------- Cat Attack (page 1) ----------
+const BW=22; // body width; everything else is measured from Kit's drawing in body-widths
+const cat={x:300,y:400,a:0,speed:190,trail:[],len:420,k:1,kTarget:1,giantT:0,walk:0,face:-1,mouth:0,chompT:0,chewT:0};
+for(let i=0;i<220;i++)cat.trail.push({x:cat.x-i*3,y:cat.y});
+let target=null,keys={},score=0,running=false,muted=false,dragonsEaten=0,biggest=0;
+const BOSSES=15; // beat all 15 dragon bosses to win (John: 7 more on 2026-11-08, 3 more on 2026-11-12; Kit: "you beet all the bosses")
+const crumbs=[];
+
+// ---------- the dragon snake (enemy) ----------
+// Kit's p5 comic: an enemy snake with a zig-zag body and an open "<" mouth. John (from Kit): it looks like a dragon with wings.
+// Wings reuse Kit's page-2 "little dragon" double shape. Blue pencil so kids can tell it apart (guess for Kit to approve).
+// John/Kit 2026-11-08: each dragon you beat brings a different, harder dragon, like a higher level.
+// Dragon 1 is Kit's blue one. The other colours, names and extras are guesses for Kit to approve.
+const DRAGONS=[
+ {name:"blue dragon",  line:"#3f57b8",dark:"#2b3f94",soft:"#93a3e3",speed:150,start:.7, grow:2.5,turn:2.5,fat:1,   look:"zig",   trick:"",      says:"the blue dragon!"},
+ {name:"sneaky dragon",line:"#2f8a4c",dark:"#1d6235",soft:"#8fd0a3",speed:158,start:.8, grow:3.5,turn:2.7,fat:1.1, look:"plates",trick:"sneak", says:"the sneaky dragon! it can hide"},
+ {name:"bat dragon",   line:"#7a3fb8",dark:"#5a2894",soft:"#c19be8",speed:162,start:.85,grow:4.5,turn:2.9,fat:.9,  look:"rings", trick:"dash",  says:"the bat dragon! it zooms"},
+ {name:"fire dragon",  line:"#d9661f",dark:"#a8460c",soft:"#f5b27f",speed:168,start:.9, grow:5.5,turn:3.0,fat:1,   look:"flames",trick:"fire",  says:"the fire dragon! dodge the fire"},
+ {name:"king dragon",  line:"#3a3a46",dark:"#1c1c24",soft:"#a7a7b8",speed:172,start:1.0,grow:6.5,turn:3.2,fat:1.3, look:"king",  trick:"charge",says:"the king dragon! it roars and charges"},
+ // John 2026-11-08: 7 more bosses, harder, and not like the first five. All 7 are guesses for Kit to approve.
+ {name:"ice dragon",   line:"#2b8fb3",dark:"#17607d",soft:"#bfe9f5",speed:176,start:1.0, grow:7,  turn:3.3,fat:1.1, look:"ice",    trick:"freeze",   says:"the ice dragon! it freezes you"},
+ {name:"two-headed dragon",line:"#c7352f",dark:"#8f1f1b",soft:"#f2a3a0",speed:178,start:1.05,grow:7.5,turn:3.4,fat:1.1,look:"twohead",trick:"tailbite",says:"the two-headed dragon! watch its tail"},
+ {name:"ghost dragon", line:"#7c8299",dark:"#4a4f66",soft:"#dfe2ee",speed:180,start:1.05,grow:8,  turn:3.5,fat:1,   look:"ghost",  trick:"teleport", says:"the ghost dragon! boo"},
+ {name:"storm dragon", line:"#9a7a00",dark:"#5e4a00",soft:"#ffe680",speed:183,start:1.1, grow:8.5,turn:3.5,fat:1.1, look:"storm",  trick:"lightning",says:"the storm dragon! run from the lightning"},
+ {name:"hungry dragon",line:"#c2337a",dark:"#861f52",soft:"#f5a6cc",speed:178,start:1.1, grow:9,  turn:3.4,fat:1.5, look:"hungry", trick:"vacuum",   says:"the hungry dragon! it sucks everything in"},
+ {name:"robot dragon", line:"#566676",dark:"#2f3a45",soft:"#c3ccd6",speed:188,start:1.12,grow:10, turn:3.7,fat:1.2, look:"robot",  trick:"rockets",  says:"the robot dragon! rockets"},
+ {name:"shadow dragon",line:"#3a2856",dark:"#170d26",soft:"#7d64a3",speed:192,start:1.15,grow:11, turn:3.9,fat:1.35,look:"shadow", trick:"dark",     says:"the shadow dragon! lights out"},
+ // John/Kit 2026-11-12: "there should be three more bosses". All 3 are guesses for Kit to approve.
+ {name:"lava dragon",  line:"#6a2a14",dark:"#341208",soft:"#c08a6a",speed:194,start:1.15,grow:11.5,turn:3.9,fat:1.25,look:"lava",   trick:"lava",     says:"the lava dragon! don't touch the lava"},
+ {name:"spiky dragon", line:"#5b4a2f",dark:"#2f2615",soft:"#d9c6a0",speed:196,start:1.18,grow:12, turn:4.0,fat:1.2, look:"quill",  trick:"quills",   says:"the spiky dragon! it shoots spikes everywhere"},
+ {name:"dragon emperor",line:"#8a2a7a",dark:"#4a1040",soft:"#e2a6d8",speed:198,start:1.2, grow:13, turn:4.1,fat:1.4, look:"emperor",trick:"all",      says:"the dragon emperor! the last boss"}];
+const lava=[];
+const strikes=[];
+const fireballs=[];
+let DK=DRAGONS[0],ELINE=DK.line,EDARK=DK.dark,ESOFT=DK.soft;
+function setDragonKind(i){DK=DRAGONS[Math.min(i,DRAGONS.length-1)];ELINE=DK.line;EDARK=DK.dark;ESOFT=DK.soft;
+  const el=document.querySelector(".sz.dr");if(el)el.style.setProperty("--dc",ELINE)}
+const dragon={alive:false,x:0,y:0,a:0,trail:[],len:300,speed:160,mouth:0,respawnT:1.2,think:0,goal:null,mode:"food",flap:0,chompT:0,
+  wing1:null,wing2:null};
+let level=1,safeT=0;
+function samplesOf(s,lenOverride){const out=[];const tr=s.trail;const L=lenOverride||s.len;let acc=0;out.push({x:tr[0].x,y:tr[0].y,d:0});
+  for(let i=1;i<tr.length&&acc<L;i++){const ax=tr[i-1].x,ay=tr[i-1].y,bx=tr[i].x,by=tr[i].y;const seg=Math.hypot(bx-ax,by-ay);if(!seg)continue;
+    let t=(4-(acc%4))%4||4;while(t<=seg&&acc+t<=L){out.push({x:ax+(bx-ax)*t/seg,y:ay+(by-ay)*t/seg,d:acc+t});t+=4}acc+=seg}
+  return out}
+const dW=()=>BW*DK.fat*(1.15+Math.min(.6,(dragon.len-300)/1500)); // gets a bit fatter as it grows
+function dWidthAt(d){const w=dW(),f=d/dragon.len;if(DK.look==="twohead")return f<.9?w:w*Math.max(.75,1-(f-.9)*2.5);return f<.8?w:w*Math.max(.12,(1-f)/.2)}
+function spawnDragon(){let best=[80,140],bd=-1;
+  for(let i=0;i<16;i++){const a=Math.random()*Math.PI*2,r=VW*.6+250,c=[Math.max(80,Math.min(W-80,cat.x+Math.cos(a)*r)),Math.max(140,Math.min(H-80,cat.y+Math.sin(a)*r))];const d=Math.hypot(c[0]-cat.x,c[1]-cat.y);if(d>bd){bd=d;best=c}}
+  dragon.x=best[0];dragon.y=best[1];dragon.a=Math.atan2(cat.y-dragon.y,cat.x-dragon.x);dragon.trail=[];
+  for(let i=0;i<260;i++)dragon.trail.push({x:dragon.x-Math.cos(dragon.a)*i*3,y:dragon.y-Math.sin(dragon.a)*i*3});
+  setDragonKind(dragonsEaten);dragon.len=Math.max(300,Math.min(maxLen(),cat.len*DK.start));for(let i=dragon.trail.length;i<dragon.len/3+10;i++)dragon.trail.push({x:dragon.x-Math.cos(dragon.a)*i*3,y:dragon.y-Math.sin(dragon.a)*i*3});dragon.speed=DK.speed;dragon.alive=true;dragon.mouth=0;dragon.face=Math.cos(dragon.a)<0?-1:1;
+  if(!dragon.wing1){dragon.wing1=scribble(14,30,71,5);dragon.wing2=scribble(15,32,133,5)}
+  checkpoint={level,dragonsEaten,score,minisEaten,speedUps,len:cat.len};
+  dragon.trickT=3;dragon.dashT=0;dragon.roarT=0;dragon.chargeT=0;dragon.suckT=0;dragon.popT=0;dragon.mouth2=0;dragon.alpha=DK.trick==="teleport"?.6:1;fireballs.length=0;strikes.length=0;lava.length=0;
+  popS(dragonsEaten?"Level "+level+": "+DK.says+"!":DK.says,150,Math.min(36,VW/13),EDARK,2.6)}
+// John 2026-11-08: if you're about the same size, nobody can eat. You have to be a little bit bigger (20%, a guess).
+const EAT_MARGIN=1.2;
+// John 2026-11-09: you and the dragon both got stuck at the old size limit (75), so nobody could ever eat. The limit is now about twice as big.
+const maxLen=()=>Math.min(3200,(W+H)*1.5);
+const catCanEat=()=>catBig()>dragon.len*EAT_MARGIN, dragonCanEat=()=>dragon.len>catBig()*EAT_MARGIN;
+const catBig=()=>cat.len*(cat.giantT>0?3:1);
+// each dragon's own trick (all guesses for Kit to approve)
+function dragonTrick(dt){let mul=1;dragon.trickT-=dt;const near=Math.hypot(cat.x-dragon.x,cat.y-dragon.y);
+  if(DK.trick==="sneak"){ // fades almost invisible for a moment, then pops back
+    const cyc=7,ph=((dragon.trickT%cyc)+cyc)%cyc;
+    // ph counts down: 2..1.5 fade out, 1.5..0.5 hidden, 0.5..0 fade in
+    dragon.alpha=ph>2?1:ph>1.5?1-(2-ph)/.5*.88:ph>.5?.12:.12+(.5-ph)/.5*.88;
+    if(ph>1.95&&ph-dt<=1.95&&running)pop("where did it go?",dragon.x,dragon.y-40,24,EDARK,1)}
+  else if(DK.trick==="dash"){ // zooms forward every few seconds
+    if(dragon.dashT>0){dragon.dashT-=dt;mul=2.1}else if(dragon.trickT<=0){dragon.trickT=3.2;dragon.dashT=.6;pop("zoom!",dragon.x,dragon.y-40,26,EDARK,.8)}}
+  else if(DK.trick==="fire"){ // spits a fireball at you; it makes you a bit smaller
+    if(dragon.trickT<=0&&near<520){dragon.trickT=3;dragon.fireMouth=.45;const a=Math.atan2(cat.y-dragon.y,cat.x-dragon.x);
+      fireballs.push({k:"fire",x:dragon.x+Math.cos(a)*24,y:dragon.y+Math.sin(a)*24,vx:Math.cos(a)*270,vy:Math.sin(a)*270,t:0})}}
+  else if(DK.trick==="charge"){ // stops, roars, then charges
+    if(dragon.roarT>0){dragon.roarT-=dt;mul=.15;dragon.fireMouth=.1;if(dragon.roarT<=0)dragon.chargeT=1.1}
+    else if(dragon.chargeT>0){dragon.chargeT-=dt;mul=2.1}
+    else if(dragon.trickT<=0&&near<560){dragon.trickT=5;dragon.roarT=.8;pop("ROAR!",dragon.x,dragon.y-44,40,EDARK,1);if(typeof crunch==="function")crunch()}}
+  else if(DK.trick==="freeze"){ // spits ice balls; a hit makes you slow for a bit
+    if(dragon.trickT<=0&&near<560){dragon.trickT=2.6;dragon.fireMouth=.4;shoot("ice",0,260)}}
+  else if(DK.trick==="tailbite"){ // its tail is a second head that can eat you too
+    const S=samplesOf(dragon),tp=S[S.length-1];dragon.tail=tp;const dtail=Math.hypot(cat.x-tp.x,cat.y-tp.y);
+    dragon.mouth2=(dragon.mouth2||0)+((dtail<150?1:0)-(dragon.mouth2||0))*Math.min(1,dt*10);
+    if(dragonCanEat()&&safeT<=0){for(const q of bodySamples()){if(Math.hypot(q.x-tp.x,q.y-tp.y)<14+widthAt(q.d)/2){pop("the tail got you!",tp.x,tp.y-50,30,EDARK,1.2);dragonEatsYou();break}}}}
+  else if(DK.trick==="teleport"){ // vanishes and pops up somewhere near you
+    if(dragon.trickT<=0&&near>200){dragon.trickT=5.5;for(let i=0;i<10;i++){const a=Math.random()*7;crumbs.push({x:dragon.x,y:dragon.y,vx:Math.cos(a)*90,vy:Math.sin(a)*90-40,t:0,r:4,c:ESOFT})}
+      const a=Math.random()*Math.PI*2;dragon.x=Math.max(60,Math.min(W-60,cat.x+Math.cos(a)*300));dragon.y=Math.max(130,Math.min(H-60,cat.y+Math.sin(a)*300));
+      dragon.a=Math.atan2(cat.y-dragon.y,cat.x-dragon.x);dragon.trail=[];for(let i=0;i<500;i++)dragon.trail.push({x:dragon.x-Math.cos(dragon.a)*i*3,y:dragon.y-Math.sin(dragon.a)*i*3});
+      dragon.face=Math.cos(dragon.a)<0?-1:1;dragon.popT=.5;pop("boo!",dragon.x,dragon.y-40,40,EDARK,1)}
+    if(dragon.popT>0)dragon.popT-=dt;dragon.alpha=.6*(dragon.popT>0?1-dragon.popT/.5*.8:1)}
+  else if(DK.trick==="lightning"){ // marks where you are, then lightning strikes there
+    if(dragon.trickT<=0&&near<800){dragon.trickT=2.6;strikes.push({x:cat.x,y:cat.y,t:0,done:false})}}
+  else if(DK.trick==="vacuum"){ // breathes in: pulls eggs (and you) toward its mouth
+    if(dragon.suckT>0){dragon.suckT-=dt;dragon.fireMouth=.1;
+      items.forEach(it=>{if(it.kind==="glow")return;const dx=dragon.x-it.x,dy=dragon.y-it.y,d=Math.hypot(dx,dy);if(d<420&&d>1){it.x+=dx/d*190*dt;it.y+=dy/d*190*dt}});
+      if(cat.giantT<=0&&near<340&&near>1){cat.x+=(dragon.x-cat.x)/near*75*dt;cat.y+=(dragon.y-cat.y)/near*75*dt}}
+    else if(dragon.trickT<=0&&near<600){dragon.trickT=5;dragon.suckT=2.2;pop("SSSLURRP!",dragon.x,dragon.y-44,34,EDARK,1.2)}}
+  else if(DK.trick==="rockets"){ // fires three rockets at once
+    if(dragon.trickT<=0&&near<650){dragon.trickT=3.2;dragon.fireMouth=.4;[-.3,0,.3].forEach(o=>shoot("rocket",o,300))}}
+  else if(DK.trick==="lava"){ // drips lava puddles behind it; touching one burns you smaller
+    dragon.dripT=(dragon.dripT||0)-dt;if(dragon.dripT<=0){dragon.dripT=.35;const S=samplesOf(dragon),q=S[Math.min(S.length-1,Math.round(S.length*.3))];lava.push({x:q.x+(Math.random()-.5)*10,y:q.y+(Math.random()-.5)*10,t:0,r:14+Math.random()*6,seed:Math.random()*99})}}
+  else if(DK.trick==="quills"){ // shoots spikes out in every direction
+    if(dragon.trickT<=0&&near<620){dragon.trickT=2.8;dragon.fireMouth=.3;pop("fwip!",dragon.x,dragon.y-40,26,EDARK,.8);for(let k=0;k<8;k++){const a=k*Math.PI/4+Math.random()*.2;fireballs.push({k:"spike",x:dragon.x+Math.cos(a)*20,y:dragon.y+Math.sin(a)*20,vx:Math.cos(a)*250,vy:Math.sin(a)*250,t:0})}}}
+  else if(DK.trick==="all"){ // the last boss uses everyone's tricks, one after another
+    if(dragon.dashT>0){dragon.dashT-=dt;mul=2}
+    else if(dragon.trickT<=0&&near<720){dragon.trickT=2.3;dragon.phaseI=((dragon.phaseI||0)+1)%4;const k=dragon.phaseI;
+      if(k===0){dragon.fireMouth=.4;shoot("fire",0,280)}
+      else if(k===1){strikes.push({x:cat.x,y:cat.y,t:0,done:false})}
+      else if(k===2){dragon.fireMouth=.4;[-.3,0,.3].forEach(o=>shoot("rocket",o,300))}
+      else{dragon.dashT=.6;pop("zoom!",dragon.x,dragon.y-40,26,EDARK,.8)}}}
+  else if(DK.trick==="dark"){ // the lights go out, and it zooms in the dark
+    if(dragon.dashT>0){dragon.dashT-=dt;mul=1.9}else if(dragon.trickT<=0){dragon.trickT=3.6;dragon.dashT=.6}}
+  if(dragon.fireMouth>0)dragon.fireMouth-=dt;
+  for(let i=fireballs.length-1;i>=0;i--){const f=fireballs[i];f.t+=dt;f.x+=f.vx*dt;f.y+=f.vy*dt;
+    if(f.t>2.4||f.x<0||f.x>W||f.y<60||f.y>H){fireballs.splice(i,1);continue}
+    if(Math.hypot(f.x-cat.x,f.y-cat.y)<14+18*cat.k){fireballs.splice(i,1);
+      if(cat.giantT>0)pop("fssst",f.x,f.y-20,24,EDARK,.7);
+      else if(f.k==="ice"){cat.frozenT=2.2;pop("brrr! frozen!",cat.x,cat.y-40,28,EDARK,1)}
+      else if(f.k==="spike"){cat.len=Math.max(420,cat.len*.9);pop("ouch, spikes!",cat.x,cat.y-40,28,EDARK,1)}
+      else if(f.k==="rocket"){cat.len=Math.max(420,cat.len*.88);pop("boom!",cat.x,cat.y-40,30,EDARK,1);crunch()}
+      else{cat.len=Math.max(420,cat.len*.85);pop("ouch, hot!",cat.x,cat.y-40,28,EDARK,1)}}}
+  for(let i=strikes.length-1;i>=0;i--){const k=strikes[i];k.t+=dt;
+    if(k.t>=1.1&&!k.done){k.done=true;crunch();if(Math.hypot(cat.x-k.x,cat.y-k.y)<70){if(cat.giantT>0)pop("fssst",cat.x,cat.y-40,24,EDARK,.7);else{cat.len=Math.max(420,cat.len*.85);pop("zap!",cat.x,cat.y-40,34,EDARK,1)}}}
+    if(k.t>1.45)strikes.splice(i,1)}
+  dragon.burnT=Math.max(0,(dragon.burnT||0)-dt);
+  for(let i=lava.length-1;i>=0;i--){const L=lava[i];L.t+=dt;if(L.t>6){lava.splice(i,1);continue}
+    if(dragon.burnT<=0&&L.t>.3&&Math.hypot(cat.x-L.x,cat.y-L.y)<L.r+14*cat.k){dragon.burnT=1;if(cat.giantT>0)pop("fssst",cat.x,cat.y-40,24,EDARK,.7);else{cat.len=Math.max(420,cat.len*.9);pop("hot lava!",cat.x,cat.y-40,30,"#d9661f",1)}}}
+  return mul}
+function shoot(k,off,speed){const a=Math.atan2(cat.y-dragon.y,cat.x-dragon.x)+off;fireballs.push({k,x:dragon.x+Math.cos(a)*24,y:dragon.y+Math.sin(a)*24,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,t:0})}
+function updateDragon(dt){
+  if(!dragon.alive){if(dragon.dyingT>0){dragon.dyingT-=dt;dragon.len=Math.max(40,dragon.len*(1-dt*2.2));dragon.flap+=dt*2}
+    dragon.respawnT-=dt;if(dragon.respawnT<1.6&&!dragon.warned&&running){dragon.warned=true;popS(dragonsEaten?"here comes a harder dragon!":"here comes a dragon!",150,Math.min(36,VW/11),EDARK,1.6)}
+    if(dragon.respawnT<=0)spawnDragon();return}
+  dragon.think-=dt;dragon.flap+=dt*7;dragon.len=Math.min(maxLen(),dragon.len+dt*DK.grow);
+  if(dragon.think<=0){dragon.think=.4;const dc=Math.hypot(cat.x-dragon.x,cat.y-dragon.y);
+    if(dragonCanEat()&&safeT<=0&&dc<520)dragon.mode="chase";
+    else if(catCanEat()&&dc<240)dragon.mode="flee";
+    else dragon.mode="food";
+    if(dragon.mode==="food"){let best=null,bd=1e9;items.forEach(it=>{if(it.kind==="glow")return;const d=Math.hypot(it.x-dragon.x,it.y-dragon.y);if(d<bd){bd=d;best=it}});dragon.goal=best}}
+  let want=null;
+  if(dragon.mode==="chase")want=Math.atan2(cat.y+Math.sin(cat.a)*40-dragon.y,cat.x+Math.cos(cat.a)*40-dragon.x);
+  else if(dragon.mode==="flee")want=Math.atan2(dragon.y-cat.y,dragon.x-cat.x);
+  else if(dragon.goal&&items.includes(dragon.goal))want=Math.atan2(dragon.goal.y-dragon.y,dragon.goal.x-dragon.x);
+  if(want!==null){let d=want-dragon.a;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;const mt=DK.turn*dt*(dragon.chargeT>0?.35:1);dragon.a+=Math.max(-mt,Math.min(mt,d))}
+  const sp=dragon.speed*(dragon.mode==="chase"?1.08:1)*dragonTrick(dt);
+  dragon.x+=Math.cos(dragon.a)*sp*dt;dragon.y+=Math.sin(dragon.a)*sp*dt;
+  const m=24,top=70;
+  if(dragon.x<m){dragon.x=m;dragon.a=Math.PI-dragon.a}if(dragon.x>W-m){dragon.x=W-m;dragon.a=Math.PI-dragon.a}
+  if(dragon.y<top+m*.5){dragon.y=top+m*.5;dragon.a=-dragon.a}if(dragon.y>H-m){dragon.y=H-m;dragon.a=-dragon.a}
+  const c=Math.cos(dragon.a);if(Math.abs(c)>.25)dragon.face=c<0?-1:1;
+  const h=dragon.trail[0];if(Math.hypot(dragon.x-h.x,dragon.y-h.y)>2){dragon.trail.unshift({x:dragon.x,y:dragon.y});if(dragon.trail.length>2400)dragon.trail.length=2400}
+  // the dragon eats treasure too, to get bigger than you
+  for(let i=items.length-1;i>=0;i--){const it=items[i];if(it.kind!=="glow"&&Math.hypot(it.x-dragon.x,it.y-dragon.y)<it.r+16){items.splice(i,1);dragon.len=Math.min(maxLen(),dragon.len+26);dragon.chompT=.25;pop("nom",it.x,it.y-20,26,EDARK,.7)}}
+  // jaws open when it's hunting you or close to food
+  const target=dragon.mode==="chase"?Math.hypot(cat.x-dragon.x,cat.y-dragon.y):(dragon.goal?Math.hypot(dragon.goal.x-dragon.x,dragon.goal.y-dragon.y):999);
+  let wm=Math.max(0,Math.min(1,(140-target)/90));if(dragon.fireMouth>0)wm=1;if(dragon.chompT>0){dragon.chompT-=dt;wm=0}
+  dragon.mouth+=(wm-dragon.mouth)*Math.min(1,dt*12);
+  // who eats who: the bigger one's mouth has to touch the other one
+  const S=samplesOf(dragon),C=bodySamples();
+  const B=catBite();let touching=false;for(const p of S){if(Math.hypot(p.x-B.x,p.y-B.y)<B.r+dWidthAt(p.d)/2){touching=true;break}}
+  dragon.tooBigT=Math.max(0,(dragon.tooBigT||0)-dt);
+  if(touching&&catCanEat()){eatDragon();return}
+  const same=!catCanEat()&&!dragonCanEat();
+  // John 2026-11-09 bug: the same-size bounce used to flip direction every frame, so both snakes got stuck and flickered.
+  // Now you bounce once, pointed away from the dragon, and get pushed clear.
+  dragon.bounceT=Math.max(0,(dragon.bounceT||0)-dt);
+  // Kit 2026-11-11: bumping a boss turned you around ("you go in a differt derecishon"). Now you keep your direction
+  // and just slide along the boss, like it's a wall.
+  if(touching&&same){let best=S[0],bd=1e9;for(const p of S){const d=Math.hypot(p.x-B.x,p.y-B.y);if(d<bd){bd=d;best=p}}
+    const need=B.r+dWidthAt(best.d)/2+1;if(bd<need){const ux=(B.x-best.x)/(bd||1),uy=(B.y-best.y)/(bd||1);cat.x+=ux*(need-bd);cat.y+=uy*(need-bd);
+      const h=cat.trail[0];if(h){h.x=cat.x;h.y=cat.y}}
+    if(dragon.tooBigT<=0){dragon.tooBigT=1.6;pop("same size! nobody can eat",cat.x,cat.y-50,26,EDARK,1.2);boing()}}
+  else if(touching&&!same&&dragon.tooBigT<=0){dragon.tooBigT=1.6;pop("too big to eat! grow first",cat.x,cat.y-50,26,EDARK,1.2)}
+  let headHits=false;for(const p of C){if(Math.hypot(p.x-dragon.x,p.y-dragon.y)<14+widthAt(p.d)/2){headHits=true;break}}
+  if(headHits&&dragonCanEat()&&safeT<=0){dragonEatsYou()}
+  else if(headHits&&same&&dragon.bounceT<=0){let best=C[0],bd=1e9;for(const p of C){const d=Math.hypot(p.x-dragon.x,p.y-dragon.y);if(d<bd){bd=d;best=p}}
+    const a=Math.atan2(dragon.y-best.y,dragon.x-best.x);dragon.a=a;dragon.x+=Math.cos(a)*14;dragon.y+=Math.sin(a)*14;dragon.think=.8;dragon.mode="food";dragon.bounceT=.6;if(dragon.tooBigT<=0){dragon.tooBigT=1.6;pop("same size! nobody can eat",dragon.x,dragon.y-50,26,EDARK,1.2);boing()}}
+}
+function eatDragon(){dragon.alive=false;fireballs.length=0;strikes.length=0;lava.length=0;dragon.alpha=1;dragon.dyingT=.9;dragon.warned=false;dragon.respawnT=4.5;cat.chompT=.32;cat.chewT=.9;
+  for(let i=0;i<14;i++){const a=Math.random()*Math.PI*2;crumbs.push({x:dragon.x,y:dragon.y,vx:Math.cos(a)*(80+Math.random()*120),vy:Math.sin(a)*(80+Math.random()*120)-50,t:0,r:2+Math.random()*3,c:ESOFT})}
+  cat.len=Math.min(maxLen(),cat.len+dragon.len*.3);level++;dragonsEaten++;crunch();tune(true);
+  if(dragonsEaten>=BOSSES){updateHud();{const g=gameId;setTimeout(()=>{if(g===gameId)gameOver(true)},900)};return}
+  pop("CRUNCH!",dragon.x,dragon.y-30,46,DARK,1.2);popS("Level up!",190,Math.min(48,VW/8),DARK,1.8);updateHud()}
+// John/Kit 2026-11-08: if the dragon eats you, you lose (replaces "you lost a level")
+function dragonEatsYou(){if(!running)return;dragon.chompT=.4;dragon.mouth=1;cat.mouth=0;cat.giantT=0;cat.kTarget=1;
+  for(let i=0;i<14;i++){const a=Math.random()*Math.PI*2;crumbs.push({x:cat.x,y:cat.y,vx:Math.cos(a)*(80+Math.random()*120),vy:Math.sin(a)*(80+Math.random()*120)-50,t:0,r:2+Math.random()*3})}
+  pop("CHOMP!",cat.x,cat.y-30,46,EDARK,1.2);updateHud();running=false;{const g=gameId;setTimeout(()=>{if(g!==gameId)return;running=true;gameOver(false)},900)}}
+function totalScore(){return score+dragonsEaten*10+minisEaten*3}
+function gameOver(won){if(!running)return;running=false;down=false;target=null;
+  const total=totalScore();let best=0;try{best=+localStorage.getItem("catattack-best")||0;if(total>best)localStorage.setItem("catattack-best",String(total))}catch(e){}
+  const el=document.getElementById("end");
+  document.getElementById("endTitle").textContent=won?"you won (Rrunch!":"the dragon got you!";
+  document.getElementById("endSub").textContent=won?"you beat all the bosses.":"Try again and get bigger than the dragon.";
+  document.getElementById("endScore").textContent=total;
+  document.getElementById("endEggs").textContent=score;
+  document.getElementById("endDragons").textContent=dragonsEaten+" of "+BOSSES;document.getElementById("endMinis").textContent=minisEaten;
+  document.getElementById("endLevel").textContent=Math.min(level,BOSSES);
+  document.getElementById("endBig").textContent=Math.round(biggest/20);
+  document.getElementById("endBest").textContent=total>best?"New best score!":"Best score: "+best;
+  const rb=document.getElementById("retryBtn"),ab=document.getElementById("againBtn");
+  const retry=!won&&level>1;rb.hidden=!retry;document.getElementById("retryLvl").textContent=Math.min(level,BOSSES);
+  ab.textContent=retry?"start over from level 1":"Play again ▶";ab.classList.toggle("alt",retry);
+  el.hidden=false;if(won)tune(true);else tune(false)}
+let gameId=0,checkpoint=null;
+// newGame(cp): no cp = start at level 1; with cp = go back to the start of that level (same boss, same size and score as when it arrived)
+function newGame(cp){gameId++;if(!cp)checkpoint=null;score=0;dragonsEaten=0;level=1;setDragonKind(0);biggest=0;safeT=0;sinceGlow=0;eatenSinceGlow=0;
+  cat.x=W/2;cat.y=H/2;cat.a=0;cat.len=420;cat.k=1;cat.kTarget=1;cat.giantT=0;cat.mouth=0;cat.chompT=0;cat.chewT=0;cat.frozenT=0;cat.trail=[];
+  for(let i=0;i<220;i++)cat.trail.push({x:cat.x-i*3,y:cat.y});
+  items.length=0;fillBoard();pops.length=0;crumbs.length=0;fireballs.length=0;strikes.length=0;lava.length=0;dragon.alive=false;dragon.respawnT=1.2;minis.length=0;minisEaten=0;speedUps=0;miniRespawn=1.5;
+  if(cp){level=cp.level;dragonsEaten=cp.dragonsEaten;score=cp.score;minisEaten=cp.minisEaten;speedUps=cp.speedUps;cat.len=cp.len;setDragonKind(dragonsEaten);safeT=2;popS("Level "+level+" again!",190,Math.min(48,VW/8),DARK,1.6)}
+  document.getElementById("score").textContent=String(score);updateHud();
+  camFollow(true);document.getElementById("end").hidden=true;document.getElementById("start").hidden=true;running=true;audio();tune(true)}
+// ---------- small snakes (John 2026-11-10) ----------
+// They are not bosses. Eat 2 of them and you get faster for the rest of that game. Their look is a guess for Kit.
+const MINI_COLORS=[["#6f8a1f","#c9dc8f"],["#9a6a2e","#e8c99a"],["#1f8f8f","#9fdcdc"]];
+const minis=[];let minisEaten=0,speedUps=0,miniRespawn=1.5;const MAX_SPEEDUPS=5;
+const miniCount=()=>8; // more small snakes now that the board is bigger
+function spawnMini(){let x,y,tries=0;do{const side=Math.floor(Math.random()*4);
+    if(side==0){x=40;y=120+Math.random()*(H-160)}else if(side==1){x=W-40;y=120+Math.random()*(H-160)}else if(side==2){x=40+Math.random()*(W-80);y=110}else{x=40+Math.random()*(W-80);y=H-40}tries++}
+  while(Math.hypot(x-cat.x,y-cat.y)<300&&tries<12);
+  const a=Math.atan2(H/2-y,W/2-x),c=MINI_COLORS[Math.floor(Math.random()*MINI_COLORS.length)];
+  const m={x,y,a,len:130+Math.random()*60,speed:125+Math.random()*25,trail:[],line:c[0],soft:c[1],think:0,goal:null,tongue:Math.random()*6,dying:0,fleeing:false};
+  for(let i=0;i<90;i++)m.trail.push({x:x-Math.cos(a)*i*3,y:y-Math.sin(a)*i*3});minis.push(m)}
+const miniW=(m,d)=>{const w=BW*.62,f=d/m.len;return f<.55?w:w*Math.max(.42,(1-f)/.45)};
+function updateMinis(dt){
+  if(minis.filter(m=>!m.dying).length<miniCount()){miniRespawn-=dt;if(miniRespawn<=0){spawnMini();miniRespawn=2.5}}
+  const B=catBite();
+  for(let i=minis.length-1;i>=0;i--){const m=minis[i];
+    if(m.dying){m.dying-=dt;m.len=Math.max(20,m.len*(1-dt*3));if(m.dying<=0)minis.splice(i,1);continue}
+    m.tongue+=dt*9;m.think-=dt;const dc=Math.hypot(cat.x-m.x,cat.y-m.y);
+    if(m.think<=0){m.think=.45;m.fleeing=dc<230;
+      if(!m.fleeing){let best=null,bd=1e9;items.forEach(it=>{if(it.kind==="glow")return;const d=Math.hypot(it.x-m.x,it.y-m.y);if(d<bd){bd=d;best=it}});m.goal=best}}
+    let want=null;
+    if(m.fleeing)want=Math.atan2(m.y-cat.y,m.x-cat.x)+Math.sin(m.tongue*.3)*.5;
+    else if(m.goal&&items.includes(m.goal))want=Math.atan2(m.goal.y-m.y,m.goal.x-m.x);
+    else want=m.a+Math.sin(m.tongue*.2)*.8;
+    let d=want-m.a;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;const mt=3*dt;m.a+=Math.max(-mt,Math.min(mt,d));
+    const sp=m.speed*(m.fleeing?1.15:1);m.x+=Math.cos(m.a)*sp*dt;m.y+=Math.sin(m.a)*sp*dt;
+    const mg=20,top=70;
+    if(m.x<mg){m.x=mg;m.a=Math.PI-m.a}if(m.x>W-mg){m.x=W-mg;m.a=Math.PI-m.a}
+    if(m.y<top+mg*.5){m.y=top+mg*.5;m.a=-m.a}if(m.y>H-mg){m.y=H-mg;m.a=-m.a}
+    const h=m.trail[0];if(Math.hypot(m.x-h.x,m.y-h.y)>2){m.trail.unshift({x:m.x,y:m.y});if(m.trail.length>200)m.trail.length=200}
+    // small snakes eat eggs too
+    for(let j=items.length-1;j>=0;j--){const it=items[j];if(it.kind!=="glow"&&Math.hypot(it.x-m.x,it.y-m.y)<it.r+8){items.splice(j,1);m.len=Math.min(260,m.len+10)}}
+    const S=samplesOf(m);
+    // you eat it if your face touches any part of it
+    if(running&&S.some(p=>Math.hypot(p.x-B.x,p.y-B.y)<B.r+miniW(m,p.d)/2)){eatMini(m);continue}
+    // a boss can eat small snakes too, and grows from them
+    if(dragon.alive&&S.some(p=>Math.hypot(p.x-dragon.x,p.y-dragon.y)<16+miniW(m,p.d)/2)){m.dying=.5;dragon.len=Math.min(maxLen(),dragon.len+40);dragon.chompT=.25;pop("nom",m.x,m.y-20,26,EDARK,.7)}}}
+function eatMini(m){m.dying=.5;minisEaten++;cat.len=Math.min(maxLen(),cat.len+40);cat.chompT=.32;cat.chewT=.9;crunch();
+  for(let i=0;i<10;i++){const a=Math.random()*Math.PI*2;crumbs.push({x:m.x,y:m.y,vx:Math.cos(a)*(70+Math.random()*100),vy:Math.sin(a)*(70+Math.random()*100)-40,t:0,r:2+Math.random()*2.5,c:m.soft})}
+  if(minisEaten%2===0&&speedUps<MAX_SPEEDUPS){speedUps++;tune(true);popS("FASTER!",190,Math.min(48,VW/8),DARK,1.6)}
+  else pop(minisEaten%2?"Rrunch! 1 more snake = faster":"Rrunch!",m.x,m.y-26,26,DARK,1.2);
+  updateHud()}
+function drawMinis(t){minis.forEach(m=>{const S=samplesOf(m);if(S.length<3)return;ctx.save();if(m.dying)ctx.globalAlpha=Math.max(0,m.dying/.5);
+  ctx.fillStyle=m.soft;for(let i=S.length-1;i>=0;i--){ctx.beginPath();ctx.arc(S[i].x+.5,S[i].y+.4,miniW(m,S[i].d)/2+1.6,0,7);ctx.fill()}
+  ctx.fillStyle=m.line;for(let i=S.length-1;i>=0;i--){ctx.beginPath();ctx.arc(S[i].x,S[i].y,miniW(m,S[i].d)/2+1.2,0,7);ctx.fill()}
+  ctx.fillStyle=PAPER;for(let i=S.length-1;i>=0;i--){ctx.beginPath();ctx.arc(S[i].x,S[i].y,miniW(m,S[i].d)/2,0,7);ctx.fill()}
+  // diamond pattern down the back, like a real snake
+  alongBody(S,6,.1,.85,(p,nx,ny,tx,ty)=>{const hw=miniW(m,p.d)/2*.6,dm=()=>{ctx.moveTo(p.x-tx*hw,p.y-ty*hw);ctx.lineTo(p.x+nx*hw,p.y+ny*hw);ctx.lineTo(p.x+tx*hw,p.y+ty*hw);ctx.lineTo(p.x-nx*hw,p.y-ny*hw);ctx.closePath()};
+    ctx.fillStyle=m.soft;ctx.beginPath();dm();ctx.fill();sketch(m.line,1.1,dm)});
+  // head: a little oval with two eyes and a flicking forked tongue
+  ctx.translate(S[0].x,S[0].y);ctx.rotate(m.a);
+  if(Math.sin(m.tongue)>.2&&!m.dying)sketch("#d23a3a",1.4,()=>{ctx.moveTo(9,0);ctx.lineTo(17,0);ctx.lineTo(21,-3);ctx.moveTo(17,0);ctx.lineTo(21,3)});
+  ctx.fillStyle=PAPER;ctx.beginPath();ctx.ellipse(2,0,10,7.5,0,0,7);ctx.fill();sketch(m.line,1.5,()=>ctx.ellipse(2,0,10,7.5,0,0,7));
+  ctx.fillStyle="#2a2a2a";[-3.6,3.6].forEach(y=>{ctx.beginPath();ctx.arc(5,y,1.6,0,7);ctx.fill()});
+  ctx.restore()})}
+function updateHud(){biggest=Math.max(biggest,catBig());const sd=document.getElementById("spd");if(sd)sd.textContent="⚡".repeat(speedUps);const l=document.getElementById("lvl");if(l)l.textContent="Level "+level;
+  const me=document.getElementById("szMe"),dr=document.getElementById("szDragon");if(!me)return;
+  const a=Math.round(catBig()/20),b=dragon.alive?Math.round(dragon.len/20):0;me.textContent=a;dr.textContent=dragon.alive?b:"–";
+  me.parentElement.classList.toggle("lead",dragon.alive&&catCanEat());dr.parentElement.classList.toggle("lead",dragon.alive&&dragonCanEat())}
+
+function drawDragon(t){const dying=!dragon.alive&&dragon.dyingT>0;if(!dragon.alive&&!dying)return;
+  const S=samplesOf(dragon);if(S.length<3)return;const w=dW();
+  ctx.save();if(dying)ctx.globalAlpha=Math.max(0,dragon.dyingT/.9);ctx.globalAlpha*=dragon.alpha==null?1:dragon.alpha;
+  // wings go behind the body
+  drawWings(S,w);
+  ctx.fillStyle=ESOFT;for(let i=S.length-1;i>=0;i--){ctx.beginPath();ctx.arc(S[i].x+.6,S[i].y+.5,dWidthAt(S[i].d)/2+2,0,7);ctx.fill()}
+  ctx.fillStyle=ELINE;for(let i=S.length-1;i>=0;i--){ctx.beginPath();ctx.arc(S[i].x,S[i].y,dWidthAt(S[i].d)/2+1.5,0,7);ctx.fill()}
+  ctx.fillStyle=PAPER;for(let i=S.length-1;i>=0;i--){ctx.beginPath();ctx.arc(S[i].x,S[i].y,dWidthAt(S[i].d)/2,0,7);ctx.fill()}
+  drawBodyLook(S,t);
+  if(DK.look==="king"||DK.look==="emperor")drawKingTail(S);
+  if(DK.look==="twohead"){const n=S.length-1,a=S[n],b=S[Math.max(0,n-6)];drawDragonHead(a.x,a.y,w,dying,a.x-b.x<0?-1:1,dragon.mouth2||0)}
+  if(dragon.suckT>0){const h=S[0],q=S[Math.min(S.length-1,6)],dx=h.x-q.x,dy=h.y-q.y,m=Math.hypot(dx,dy)||1,ux=dx/m,uy=dy/m,ph=(performance.now()/300)%1;
+    sketch(ESOFT,2.2,()=>{for(let k=0;k<3;k++){const r=40+((k/3+1-ph)%1)*120;ctx.moveTo(h.x+ux*r-uy*r*.45,h.y+uy*r+ux*r*.45);ctx.quadraticCurveTo(h.x+ux*(r+14),h.y+uy*(r+14),h.x+ux*r+uy*r*.45,h.y+uy*r-ux*r*.45)}})}
+  if(dragon.dashT>0||dragon.chargeT>0)sketch(ESOFT,2,()=>{const h=S[0],q=S[Math.min(S.length-1,6)],dx=h.x-q.x,dy=h.y-q.y,m=Math.hypot(dx,dy)||1;
+    for(let k=-1;k<=1;k++){const ox=-dy/m*k*14,oy=dx/m*k*14;ctx.moveTo(q.x-dx/m*20+ox,q.y-dy/m*20+oy);ctx.lineTo(q.x-dx/m*60+ox,q.y-dy/m*60+oy)}});
+  drawDragonHead(S[0].x,S[0].y,w,dying);ctx.restore();
+  fireballs.forEach(f=>{
+    if(f.k==="ice"){ctx.fillStyle="rgba(200,238,250,.9)";ctx.beginPath();ctx.arc(f.x,f.y,10,0,7);ctx.fill();sketch("#2b8fb3",1.6,()=>{for(let k=0;k<3;k++){const a=k*Math.PI/3+f.t*3;ctx.moveTo(f.x+Math.cos(a)*9,f.y+Math.sin(a)*9);ctx.lineTo(f.x-Math.cos(a)*9,f.y-Math.sin(a)*9)}ctx.moveTo(f.x+11,f.y);ctx.arc(f.x,f.y,11,0,7)});return}
+    if(f.k==="spike"){ctx.save();ctx.translate(f.x,f.y);ctx.rotate(Math.atan2(f.vy,f.vx));ctx.fillStyle="#d9c6a0";ctx.beginPath();ctx.moveTo(12,0);ctx.lineTo(-8,-3.5);ctx.lineTo(-8,3.5);ctx.closePath();ctx.fill();sketch("#2f2615",1.4,()=>{ctx.moveTo(12,0);ctx.lineTo(-8,-3.5);ctx.lineTo(-8,3.5);ctx.closePath()});ctx.restore();return}
+    if(f.k==="rocket"){ctx.save();ctx.translate(f.x,f.y);ctx.rotate(Math.atan2(f.vy,f.vx));ctx.fillStyle="rgba(245,150,40,.85)";ctx.beginPath();ctx.moveTo(-9,-4);ctx.lineTo(-20-4*Math.sin(t/40),0);ctx.lineTo(-9,4);ctx.fill();
+      ctx.fillStyle="#c3ccd6";ctx.fillRect(-10,-4.5,16,9);ctx.fillStyle="#d23a3a";ctx.beginPath();ctx.moveTo(6,-4.5);ctx.lineTo(13,0);ctx.lineTo(6,4.5);ctx.fill();sketch("#2f3a45",1.3,()=>{ctx.rect(-10,-4.5,16,9)});ctx.restore();return}
+    const r=9+2*Math.sin(t/50+f.t*20);ctx.fillStyle="rgba(245,140,40,.8)";ctx.beginPath();ctx.arc(f.x,f.y,r,0,7);ctx.fill();
+    ctx.fillStyle="rgba(250,215,70,.95)";ctx.beginPath();ctx.arc(f.x,f.y,r*.5,0,7);ctx.fill();sketch("#c0500e",1.4,()=>{ctx.arc(f.x,f.y,r+1,0,7)})});
+  strikes.forEach(k=>{if(k.t<1.1){const pu=.5+.5*Math.sin(k.t*18);ctx.fillStyle="rgba(255,220,60,"+(.12+.12*pu)+")";ctx.beginPath();ctx.arc(k.x,k.y,70,0,7);ctx.fill();
+      sketch("#9a7a00",2,()=>{ctx.setLineDash([8,7]);ctx.arc(k.x,k.y,70,0,7)});ctx.setLineDash([]);ctx.fillStyle="#9a7a00";ctx.font="bold 30px 'Gochi Hand', cursive";ctx.textAlign="center";ctx.fillText("!",k.x,k.y+10)}
+    else{const a=1-(k.t-1.1)/.35;ctx.save();ctx.globalAlpha=Math.max(0,a);const top=k.y-520,pts=[[k.x+10,top],[k.x-20,top+(k.y-top)*.35],[k.x+18,top+(k.y-top)*.55],[k.x-14,top+(k.y-top)*.75],[k.x,k.y]];
+      ["#ffd200",PAPER].forEach((c,j)=>{ctx.strokeStyle=c;ctx.lineWidth=j?3:10;ctx.lineJoin="round";ctx.beginPath();pts.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.stroke()});
+      ctx.fillStyle="rgba(255,230,90,.5)";ctx.beginPath();ctx.arc(k.x,k.y,70,0,7);ctx.fill();ctx.restore()}})}
+// walk along the body: p = point, (nx,ny) = normal pointing "up" on screen, (tx,ty) = direction toward the tail, hw = half width
+function alongBody(S,step,from,to,fn){for(let i=Math.round(S.length*from);i<S.length*to-1;i+=step){const p=S[i],q=S[i+1];if(!q)break;const dx=q.x-p.x,dy=q.y-p.y,m=Math.hypot(dx,dy)||1;let nx=-dy/m,ny=dx/m;if(ny>0){nx=-nx;ny=-ny}fn(p,nx,ny,dx/m,dy/m,dWidthAt(p.d)/2,i)}}
+function drawBodyLook(S,t){const look=DK.look;
+  if(look==="zig"){ // Kit's p5: zig-zag down the body, little spikes on top
+    sketch(EDARK,1.8,()=>{let first=true;for(let i=4;i<S.length-1;i+=5){const p=S[i],q=S[i+1],dx=q.x-p.x,dy=q.y-p.y,m=Math.hypot(dx,dy)||1,nx=-dy/m,ny=dx/m,hw=dWidthAt(p.d)/2*.7,s=((i-4)/5)%2?1:-1;
+      const x=p.x+nx*hw*s,y=p.y+ny*hw*s;if(first){ctx.moveTo(x,y);first=false}else ctx.lineTo(x,y)}});
+    sketch(ELINE,1.6,()=>alongBody(S,7,.04,.85,(p,nx,ny,tx,ty,hw)=>{const sz=hw*.75;ctx.moveTo(p.x+nx*hw-tx*sz*.5,p.y+ny*hw-ty*sz*.5);ctx.lineTo(p.x+nx*(hw+sz),p.y+ny*(hw+sz));ctx.lineTo(p.x+nx*hw+tx*sz*.5,p.y+ny*hw+ty*sz*.5)}))}
+  else if(look==="plates"){ // sneaky dragon: big round back plates and scaly skin
+    alongBody(S,11,.06,.8,(p,nx,ny,tx,ty,hw,i)=>{const r=hw*(i%22<11?.95:.7);const cx=p.x+nx*hw,cy=p.y+ny*hw,a=Math.atan2(ny,nx);
+      ctx.fillStyle=ESOFT;ctx.beginPath();ctx.arc(cx,cy,r,a-Math.PI/2,a+Math.PI/2);ctx.fill();sketch(ELINE,1.6,()=>ctx.arc(cx,cy,r,a-Math.PI/2,a+Math.PI/2))});
+    sketch(ELINE,1.2,()=>alongBody(S,4,.05,.85,(p,nx,ny,tx,ty,hw,i)=>{const o=((i/4)%2?.35:-.25)*hw;const cx=p.x+nx*o,cy=p.y+ny*o,a=Math.atan2(ty,tx);ctx.moveTo(cx+Math.cos(a+1.9)*3.5,cy+Math.sin(a+1.9)*3.5);ctx.arc(cx,cy,3.5,a+1.9,a+4.4)}))}
+  else if(look==="rings"){ // bat dragon: stripy rings and a belly line
+    sketch(EDARK,1.6,()=>alongBody(S,6,.03,.92,(p,nx,ny,tx,ty,hw)=>{ctx.moveTo(p.x+nx*hw*.9,p.y+ny*hw*.9);ctx.quadraticCurveTo(p.x-tx*3,p.y-ty*3,p.x-nx*hw*.9,p.y-ny*hw*.9)}));
+    sketch(ESOFT,1.4,()=>{let f=true;alongBody(S,3,.02,.95,(p,nx,ny,tx,ty,hw)=>{const x=p.x-nx*hw*.55,y=p.y-ny*hw*.55;if(f){ctx.moveTo(x,y);f=false}else ctx.lineTo(x,y)})})}
+  else if(look==="flames"){ // fire dragon: flames along the back, glowing dots
+    alongBody(S,9,.05,.85,(p,nx,ny,tx,ty,hw,i)=>{const sz=hw*(1+.3*Math.sin(t/120+i));const bx=p.x+nx*hw,by=p.y+ny*hw;
+      const path=()=>{ctx.moveTo(bx-tx*hw*.6,by-ty*hw*.6);ctx.quadraticCurveTo(bx+nx*sz*.6-tx*hw*.6,by+ny*sz*.6-ty*hw*.6,bx+nx*sz+tx*sz*.5,by+ny*sz+ty*sz*.5);ctx.quadraticCurveTo(bx+nx*sz*.3+tx*hw*.2,by+ny*sz*.3+ty*hw*.2,bx+tx*hw*.6,by+ty*hw*.6)};
+      ctx.fillStyle="rgba(250,200,70,.8)";ctx.beginPath();path();ctx.fill();sketch(ELINE,1.5,path)});
+    alongBody(S,8,.05,.8,(p,nx,ny,tx,ty,hw,i)=>{ctx.fillStyle=(i/8)%2?"#f2a33a":ELINE;ctx.beginPath();ctx.arc(p.x-nx*hw*.3+tx*2,p.y-ny*hw*.3+ty*2,2.2,0,7);ctx.fill()})}
+  else if(look==="king"){ // king dragon: spikes on both sides and a scaly belly
+    sketch(ELINE,1.7,()=>alongBody(S,6,.04,.88,(p,nx,ny,tx,ty,hw)=>{const sz=hw*.9;[1,-1].forEach(s=>{const ex=nx*s,ey=ny*s,zz=s<0?.55:1;ctx.moveTo(p.x+ex*hw-tx*sz*.45,p.y+ey*hw-ty*sz*.45);ctx.lineTo(p.x+ex*(hw+sz*zz),p.y+ey*(hw+sz*zz));ctx.lineTo(p.x+ex*hw+tx*sz*.45,p.y+ey*hw+ty*sz*.45)})}));
+    sketch(EDARK,1.3,()=>alongBody(S,5,.04,.9,(p,nx,ny,tx,ty,hw)=>{const cx=p.x-nx*hw*.2,cy=p.y-ny*hw*.2,a=Math.atan2(ty,tx);ctx.moveTo(cx+Math.cos(a-1.3)*hw*.5,cy+Math.sin(a-1.3)*hw*.5);ctx.arc(cx,cy,hw*.5,a-1.3,a+1.3)}))}
+  else if(look==="ice"){ // ice dragon: crystal shards on top, icicles underneath, diamond pattern
+    alongBody(S,8,.04,.85,(p,nx,ny,tx,ty,hw)=>{const sz=hw*1.5;const sh=()=>{ctx.moveTo(p.x+nx*hw-tx*hw*.35,p.y+ny*hw-ty*hw*.35);ctx.lineTo(p.x+nx*(hw+sz),p.y+ny*(hw+sz));ctx.lineTo(p.x+nx*hw+tx*hw*.35,p.y+ny*hw+ty*hw*.35)};ctx.fillStyle=ESOFT;ctx.beginPath();sh();ctx.fill();sketch(ELINE,1.5,sh)});
+    alongBody(S,10,.06,.8,(p,nx,ny,tx,ty,hw)=>{const ic=()=>{ctx.moveTo(p.x-nx*hw-tx*4,p.y-ny*hw-ty*4);ctx.lineTo(p.x-nx*(hw+hw*.9),p.y-ny*(hw+hw*.9));ctx.lineTo(p.x-nx*hw+tx*4,p.y-ny*hw+ty*4)};ctx.fillStyle="rgba(230,248,255,.95)";ctx.beginPath();ic();ctx.fill();sketch(ELINE,1.2,ic)});
+    [1,-1].forEach(sg=>sketch(ESOFT,1.4,()=>{let f=true;for(let i=4;i<S.length-1;i+=5){const p=S[i],q=S[i+1],dx=q.x-p.x,dy=q.y-p.y,m=Math.hypot(dx,dy)||1,nx=-dy/m,ny=dx/m,hw=dWidthAt(p.d)/2*.7,s=(((i-4)/5)%2?1:-1)*sg;const x=p.x+nx*hw*s,y=p.y+ny*hw*s;if(f){ctx.moveTo(x,y);f=false}else ctx.lineTo(x,y)}}))}
+  else if(look==="twohead"){ // two-headed dragon: big spots and small spikes
+    alongBody(S,9,.08,.85,(p,nx,ny,tx,ty,hw,i)=>{const o=((i/9)%2?.3:-.25)*hw;ctx.fillStyle=ESOFT;ctx.beginPath();ctx.arc(p.x+nx*o,p.y+ny*o,hw*.32,0,7);ctx.fill();sketch(ELINE,1.2,()=>ctx.arc(p.x+nx*o,p.y+ny*o,hw*.32,0,7))});
+    sketch(ELINE,1.6,()=>alongBody(S,7,.1,.85,(p,nx,ny,tx,ty,hw)=>{const sz=hw*.6;ctx.moveTo(p.x+nx*hw-tx*sz*.5,p.y+ny*hw-ty*sz*.5);ctx.lineTo(p.x+nx*(hw+sz),p.y+ny*(hw+sz));ctx.lineTo(p.x+nx*hw+tx*sz*.5,p.y+ny*hw+ty*sz*.5)}))}
+  else if(look==="ghost"){ // ghost dragon: wispy curls underneath
+    sketch(ELINE,1.5,()=>alongBody(S,8,.04,.95,(p,nx,ny,tx,ty,hw,i)=>{const b=(i/8)%2?1:-1;ctx.moveTo(p.x-nx*hw,p.y-ny*hw);ctx.quadraticCurveTo(p.x-nx*(hw+12)+tx*8*b,p.y-ny*(hw+12)+ty*8*b,p.x-nx*(hw+6)+tx*12,p.y-ny*(hw+6)+ty*12)}));
+    sketch(ESOFT,1.4,()=>alongBody(S,12,.05,.85,(p,nx,ny,tx,ty,hw)=>{ctx.moveTo(p.x+nx*hw*.3-tx*4,p.y+ny*hw*.3-ty*4);ctx.lineTo(p.x+nx*hw*.3+tx*4,p.y+ny*hw*.3+ty*4)}))}
+  else if(look==="storm"){ // storm dragon: a lightning bolt down the body and clouds on top
+    alongBody(S,10,.05,.85,(p,nx,ny,tx,ty,hw)=>{const cx=p.x+nx*hw,cy=p.y+ny*hw;ctx.fillStyle=PAPER;ctx.beginPath();[-.5,0,.5].forEach(o=>{ctx.moveTo(cx+tx*hw*o+hw*.42,cy+ty*hw*o);ctx.arc(cx+tx*hw*o,cy+ty*hw*o,hw*.42,0,7)});ctx.fill();
+      sketch(ELINE,1.3,()=>{[-.5,0,.5].forEach(o=>{const a=Math.atan2(ny,nx);ctx.moveTo(cx+tx*hw*o+Math.cos(a-1.6)*hw*.42,cy+ty*hw*o+Math.sin(a-1.6)*hw*.42);ctx.arc(cx+tx*hw*o,cy+ty*hw*o,hw*.42,a-1.6,a+1.6)})})});
+    ctx.save();ctx.strokeStyle="#ffd200";ctx.lineWidth=4;ctx.lineJoin="miter";ctx.beginPath();let f=true;for(let i=3;i<S.length*.9;i+=7){const p=S[i],q=S[i+1];if(!q)break;const dx=q.x-p.x,dy=q.y-p.y,m=Math.hypot(dx,dy)||1,hw=dWidthAt(p.d)/2*.55,s=((i-3)/7)%2?1:-1;const x=p.x-dy/m*hw*s,y=p.y+dx/m*hw*s;if(f){ctx.moveTo(x,y);f=false}else ctx.lineTo(x,y)}ctx.stroke();ctx.restore()}
+  else if(look==="hungry"){ // hungry dragon: a big round tummy with stripes
+    sketch(ELINE,1.5,()=>alongBody(S,6,.05,.85,(p,nx,ny,tx,ty,hw)=>{ctx.moveTo(p.x-nx*hw*.1-tx*hw*.25,p.y-ny*hw*.1-ty*hw*.25);ctx.quadraticCurveTo(p.x-nx*hw*.75,p.y-ny*hw*.75,p.x-nx*hw*.1+tx*hw*.25,p.y-ny*hw*.1+ty*hw*.25)}));
+    alongBody(S,13,.08,.8,(p,nx,ny,tx,ty,hw)=>{ctx.fillStyle=ESOFT;ctx.beginPath();ctx.arc(p.x+nx*hw*.5,p.y+ny*hw*.5,hw*.17,0,7);ctx.fill()})}
+  else if(look==="robot"){ // robot dragon: metal plates, bolts, square bumps on top
+    sketch(EDARK,1.4,()=>alongBody(S,8,.03,.92,(p,nx,ny,tx,ty,hw)=>{ctx.moveTo(p.x+nx*hw,p.y+ny*hw);ctx.lineTo(p.x-nx*hw,p.y-ny*hw)}));
+    alongBody(S,8,.05,.9,(p,nx,ny,tx,ty,hw)=>{ctx.fillStyle=EDARK;[.6,-.6].forEach(o=>{ctx.beginPath();ctx.arc(p.x+nx*hw*o+tx*4,p.y+ny*hw*o+ty*4,1.6,0,7);ctx.fill()})});
+    alongBody(S,10,.05,.85,(p,nx,ny,tx,ty,hw)=>{const sz=hw*.6,b=()=>{ctx.moveTo(p.x+nx*hw-tx*sz*.5,p.y+ny*hw-ty*sz*.5);ctx.lineTo(p.x+nx*(hw+sz)-tx*sz*.5,p.y+ny*(hw+sz)-ty*sz*.5);ctx.lineTo(p.x+nx*(hw+sz)+tx*sz*.5,p.y+ny*(hw+sz)+ty*sz*.5);ctx.lineTo(p.x+nx*hw+tx*sz*.5,p.y+ny*hw+ty*sz*.5)};ctx.fillStyle=ESOFT;ctx.beginPath();b();ctx.fill();sketch(ELINE,1.4,b)})}
+  else if(look==="lava"){ // lava dragon: rocky lumps on top and glowing cracks
+    alongBody(S,9,.05,.85,(p,nx,ny,tx,ty,hw,i)=>{const r=hw*(.7+hash(i)*.4),cx=p.x+nx*hw*.9,cy=p.y+ny*hw*.9;const rock=()=>{for(let k=0;k<6;k++){const a=k/6*Math.PI*2,rr=r*(.75+hash(i+k)*.4);k?ctx.lineTo(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr):ctx.moveTo(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr)}ctx.closePath()};
+      ctx.fillStyle=ESOFT;ctx.beginPath();rock();ctx.fill();sketch(ELINE,1.5,rock)});
+    ctx.save();ctx.shadowColor="#ff7a1a";ctx.shadowBlur=8;ctx.strokeStyle="#ff8a2a";ctx.lineWidth=2.4;ctx.lineJoin="round";ctx.beginPath();
+    alongBody(S,7,.05,.88,(p,nx,ny,tx,ty,hw,i)=>{const s=(i/7)%2?1:-1;ctx.moveTo(p.x-nx*hw*.6*s-tx*5,p.y-ny*hw*.6*s-ty*5);ctx.lineTo(p.x-nx*hw*.1*s+tx*2,p.y-ny*hw*.1*s+ty*2);ctx.lineTo(p.x+nx*hw*.3*s+tx*7,p.y+ny*hw*.3*s+ty*7)});ctx.stroke();ctx.restore()}
+  else if(look==="quill"){ // spiky dragon: long quills sticking out all over
+    sketch(EDARK,1.5,()=>alongBody(S,4,.04,.9,(p,nx,ny,tx,ty,hw,i)=>{[1,-1].forEach(sg=>{const L=hw*(1.1+hash(i+sg)*.6)*(sg<0?.7:1);ctx.moveTo(p.x+nx*hw*.8*sg,p.y+ny*hw*.8*sg);ctx.lineTo(p.x+nx*(hw+L)*sg+tx*L*.6,p.y+ny*(hw+L)*sg+ty*L*.6)})}));
+    sketch(ESOFT,1.2,()=>alongBody(S,6,.05,.88,(p,nx,ny,tx,ty,hw)=>{ctx.moveTo(p.x-tx*3,p.y-ty*3);ctx.lineTo(p.x+tx*3,p.y+ty*3)}))}
+  else if(look==="emperor"){ // dragon emperor: rainbow scales and spikes on both sides
+    alongBody(S,3,.02,.95,(p,nx,ny,tx,ty,hw,i)=>{ctx.fillStyle="hsla("+((i*7+performance.now()/20)%360)+",80%,62%,.55)";ctx.beginPath();ctx.arc(p.x,p.y,hw*.62,0,7);ctx.fill()});
+    sketch(ELINE,1.7,()=>alongBody(S,6,.04,.88,(p,nx,ny,tx,ty,hw)=>{const sz=hw*.85;[1,-1].forEach(s=>{const ex=nx*s,ey=ny*s,zz=s<0?.55:1;ctx.moveTo(p.x+ex*hw-tx*sz*.45,p.y+ey*hw-ty*sz*.45);ctx.lineTo(p.x+ex*(hw+sz*zz),p.y+ey*(hw+sz*zz));ctx.lineTo(p.x+ex*hw+tx*sz*.45,p.y+ey*hw+ty*sz*.45)})}))}
+  else if(look==="shadow"){ // shadow dragon: smoky purple body and long curved spikes
+    alongBody(S,5,.03,.9,(p,nx,ny,tx,ty,hw,i)=>{ctx.fillStyle="rgba(125,100,163,.45)";ctx.beginPath();ctx.arc(p.x+nx*hw*Math.sin(i)*.4,p.y+ny*hw*Math.sin(i)*.4,hw*.35,0,7);ctx.fill()});
+    alongBody(S,8,.04,.88,(p,nx,ny,tx,ty,hw)=>{const sz=hw*1.3,sp=()=>{ctx.moveTo(p.x+nx*hw-tx*sz*.35,p.y+ny*hw-ty*sz*.35);ctx.quadraticCurveTo(p.x+nx*(hw+sz*.7),p.y+ny*(hw+sz*.7),p.x+nx*(hw+sz)+tx*sz*.6,p.y+ny*(hw+sz)+ty*sz*.6);ctx.lineTo(p.x+nx*hw+tx*sz*.35,p.y+ny*hw+ty*sz*.35)};ctx.fillStyle=ELINE;ctx.beginPath();sp();ctx.fill()})}}
+function drawKingTail(S){const p=S[S.length-1],q=S[Math.max(0,S.length-5)],dx=p.x-q.x,dy=p.y-q.y,m=Math.hypot(dx,dy)||1,ux=dx/m,uy=dy/m;
+  const path=()=>{ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-uy*10,p.y+ux*10);ctx.lineTo(p.x+ux*18,p.y+uy*18);ctx.lineTo(p.x+uy*10,p.y-ux*10);ctx.closePath()};
+  ctx.fillStyle=ESOFT;ctx.beginPath();path();ctx.fill();sketch(ELINE,1.6,path)}
+function drawLava(t){lava.forEach(L=>{const a=Math.min(1,L.t/.3)*Math.min(1,(6-L.t)/.8),r=L.r*(1+.06*Math.sin(t/200+L.seed));ctx.save();ctx.globalAlpha=a;
+  const blob=()=>{for(let k=0;k<=12;k++){const an=k/12*Math.PI*2,rr=r*(.8+.25*hash(L.seed+k));k?ctx.lineTo(L.x+Math.cos(an)*rr,L.y+Math.sin(an)*rr*.8):ctx.moveTo(L.x+Math.cos(an)*rr,L.y+Math.sin(an)*rr*.8)}ctx.closePath()};
+  ctx.fillStyle="rgba(255,120,30,.75)";ctx.beginPath();blob();ctx.fill();ctx.fillStyle="rgba(255,220,80,.8)";ctx.beginPath();ctx.ellipse(L.x,L.y,r*.4,r*.3,0,0,7);ctx.fill();sketch("#a8460c",1.4,blob);ctx.restore()})}
+// when the boss is off the screen, an arrow at the edge points to it
+function drawBossPointer(){if(!dragon.alive||!running)return;const dx=dragon.x,dy=dragon.y;
+  if(dx>camX&&dx<camX+VW&&dy>camY+60&&dy<camY+VH)return;const cx=camX+VW/2,cy=camY+VH/2+30,a=Math.atan2(dy-cy,dx-cx);
+  const m=34,hx=VW/2-m,hy=(VH-60)/2-m,k=Math.min(Math.abs(hx/Math.cos(a)),Math.abs(hy/Math.sin(a))),px=cx+Math.cos(a)*k,py=cy+Math.sin(a)*k;
+  ctx.save();ctx.translate(px,py);ctx.rotate(a);ctx.fillStyle=ESOFT;ctx.beginPath();ctx.moveTo(18,0);ctx.lineTo(-10,-13);ctx.lineTo(-4,0);ctx.lineTo(-10,13);ctx.closePath();ctx.fill();sketch(ELINE,2.4,()=>{ctx.moveTo(18,0);ctx.lineTo(-10,-13);ctx.lineTo(-4,0);ctx.lineTo(-10,13);ctx.closePath()});ctx.restore()}
+function drawWings(S,w){const look=DK.look,wi=Math.min(S.length-1,Math.round(w*3/4)),fl=.55+.45*Math.abs(Math.sin(dragon.flap)),ws=w/22*1.35;
+  const at=(idx,rot,big,draw)=>{const p=S[Math.min(S.length-1,idx)];ctx.save();ctx.translate(p.x,p.y);ctx.rotate(rot);ctx.scale(ws*big,ws*big*fl);draw(ws*big);ctx.restore()};
+  if(look==="zig")[[dragon.wing1,-.55],[dragon.wing2,.5]].forEach(([pts,rot])=>at(wi,rot,1,s=>{ctx.translate(0,-30);
+    ctx.fillStyle="rgba(255,254,251,.85)";ctx.beginPath();ctx.ellipse(0,0,13,28,0,0,7);ctx.fill();
+    sketch(ESOFT,2/s,()=>{pts.forEach(([a,b],i)=>i?ctx.lineTo(a,b):ctx.moveTo(a,b))});sketch(ELINE,1.6/s,()=>{ctx.ellipse(0,0,14,30,0,0,7)})}));
+  else if(look==="plates")[[-.5],[.45]].forEach(([rot])=>at(wi,rot,1.2,s=>{const leaf=()=>{ctx.moveTo(0,0);ctx.quadraticCurveTo(-18,-20,0,-44);ctx.quadraticCurveTo(18,-20,0,0)};
+    ctx.fillStyle=ESOFT;ctx.beginPath();leaf();ctx.fill();sketch(ELINE,1.6/s,leaf);sketch(EDARK,1.2/s,()=>{ctx.moveTo(0,-2);ctx.lineTo(0,-38);[-12,-22,-30].forEach(y=>{ctx.moveTo(0,y);ctx.lineTo(-7,y-7);ctx.moveTo(0,y);ctx.lineTo(7,y-7)})})}));
+  else if(look==="rings")[[-.45,1],[.4,-1]].forEach(([rot,f])=>at(wi,rot,1.25,s=>{ctx.scale(f,1);
+    const tips=[[-24,-30],[-10,-50],[10,-46],[24,-28]];
+    const edge=()=>{ctx.moveTo(-4,0);ctx.lineTo(tips[0][0],tips[0][1]);for(let i=0;i<tips.length-1;i++){const a=tips[i],b=tips[i+1];ctx.quadraticCurveTo((a[0]+b[0])/2,(a[1]+b[1])/2+12,b[0],b[1])}ctx.quadraticCurveTo(16,-10,6,0)};
+    ctx.fillStyle="rgba(240,230,252,.92)";ctx.beginPath();edge();ctx.fill();sketch(ELINE,1.6/s,edge);
+    sketch(EDARK,1.8/s,()=>{tips.forEach(([x,y])=>{ctx.moveTo(0,0);ctx.lineTo(x,y)})})}));
+  else if(look==="flames")[[-.5,1],[.45,-1]].forEach(([rot,f])=>at(wi,rot,1.05,s=>{ctx.scale(f,1);
+    const wing=()=>{ctx.moveTo(-4,0);ctx.quadraticCurveTo(-26,-22,-10,-50);ctx.quadraticCurveTo(-4,-36,2,-44);ctx.quadraticCurveTo(4,-30,12,-36);ctx.quadraticCurveTo(12,-20,20,-22);ctx.quadraticCurveTo(14,-6,6,0)};
+    ctx.fillStyle="rgba(250,200,70,.75)";ctx.beginPath();wing();ctx.fill();sketch(ELINE,1.6/s,wing)}));
+  else if(look==="king")[[wi,-.6],[wi,.55],[wi+Math.round(w*1.7),-.5],[wi+Math.round(w*1.7),.45]].forEach(([idx,rot],k)=>at(idx,rot,k<2?1.3:1.05,s=>{ctx.translate(0,-30);
+    ctx.fillStyle="rgba(255,254,251,.9)";ctx.beginPath();ctx.ellipse(0,0,15,30,0,0,7);ctx.fill();
+    sketch(ESOFT,1.6/s,()=>{[-18,-6,6,18].forEach(y=>{ctx.moveTo(-12,y);ctx.quadraticCurveTo(0,y+8,12,y)})});
+    sketch(ELINE,1.6/s,()=>{ctx.ellipse(0,0,15,30,0,0,7)})}))
+  else if(look==="lava")[[-.5,1],[.45,-1]].forEach(([rot,f])=>at(wi,rot,1.2,s=>{ctx.scale(f,1);
+    const wing=()=>{ctx.moveTo(-4,0);ctx.lineTo(-24,-26);ctx.lineTo(-14,-28);ctx.lineTo(-12,-50);ctx.lineTo(0,-36);ctx.lineTo(8,-46);ctx.lineTo(10,-28);ctx.lineTo(22,-26);ctx.lineTo(6,0)};
+    ctx.fillStyle="rgba(70,30,20,.9)";ctx.beginPath();wing();ctx.fill();sketch("#ff8a2a",1.8/s,wing)}));
+  else if(look==="quill")[[dragon.wing1,-.55],[dragon.wing2,.5]].forEach(([pts,rot])=>at(wi,rot,.8,s=>{ctx.translate(0,-30);
+    ctx.fillStyle="rgba(255,254,251,.9)";ctx.beginPath();ctx.ellipse(0,0,13,28,0,0,7);ctx.fill();sketch(ESOFT,2/s,()=>{pts.forEach(([a,b],i)=>i?ctx.lineTo(a,b):ctx.moveTo(a,b))});sketch(ELINE,1.6/s,()=>{ctx.ellipse(0,0,14,30,0,0,7)})}));
+  else if(look==="emperor")[[wi,-.6],[wi,.55],[wi+Math.round(w*1.7),-.5],[wi+Math.round(w*1.7),.45]].forEach(([idx,rot],k)=>at(idx,rot,k<2?1.4:1.15,s=>{ctx.translate(0,-30);
+    ctx.fillStyle="hsla("+(k*90+30)+",85%,80%,.9)";ctx.beginPath();ctx.ellipse(0,0,15,30,0,0,7);ctx.fill();
+    sketch("hsl("+(k*90+30)+",70%,45%)",1.6/s,()=>{[-18,-6,6,18].forEach(y=>{ctx.moveTo(-12,y);ctx.quadraticCurveTo(0,y+8,12,y)})});sketch(ELINE,1.6/s,()=>{ctx.ellipse(0,0,15,30,0,0,7)})}))
+  else if(look==="ice")[[-.5,1],[.45,-1]].forEach(([rot,f])=>at(wi,rot,1.15,s=>{ctx.scale(f,1);const shards=[[-16,-30],[-4,-48],[10,-38],[20,-20]];
+    shards.forEach(([x,y])=>{const sh=()=>{ctx.moveTo(-2,0);ctx.lineTo(x-5,y*.55);ctx.lineTo(x,y);ctx.lineTo(x+5,y*.55);ctx.lineTo(4,0)};ctx.fillStyle="rgba(215,243,252,.9)";ctx.beginPath();sh();ctx.fill();sketch(ELINE,1.4/s,sh)})}));
+  else if(look==="twohead")[[dragon.wing1,-.55],[dragon.wing2,.5]].forEach(([pts,rot])=>at(Math.round(S.length*.45),rot,1.1,s=>{ctx.translate(0,-30);
+    ctx.fillStyle="rgba(255,254,251,.85)";ctx.beginPath();ctx.ellipse(0,0,13,28,0,0,7);ctx.fill();
+    sketch(ESOFT,2/s,()=>{pts.forEach(([a,b],i)=>i?ctx.lineTo(a,b):ctx.moveTo(a,b))});sketch(ELINE,1.6/s,()=>{ctx.ellipse(0,0,14,30,0,0,7)})}));
+  else if(look==="ghost")[[-.5,1],[.45,-1]].forEach(([rot,f])=>at(wi,rot,1.1,s=>{ctx.scale(f,1);const g=()=>{ctx.moveTo(-6,0);ctx.quadraticCurveTo(-22,-30,-4,-50);ctx.quadraticCurveTo(14,-44,18,-24);ctx.lineTo(12,-20);ctx.lineTo(14,-12);ctx.lineTo(7,-10);ctx.lineTo(8,-2);ctx.lineTo(4,0)};
+    ctx.fillStyle="rgba(240,242,250,.85)";ctx.beginPath();g();ctx.fill();sketch(ELINE,1.5/s,g)}));
+  else if(look==="storm")[[-.5,1],[.45,-1]].forEach(([rot,f])=>at(wi,rot,1.15,s=>{ctx.scale(f,1);const b=()=>{ctx.moveTo(-4,0);ctx.lineTo(-16,-24);ctx.lineTo(-5,-23);ctx.lineTo(-12,-50);ctx.lineTo(14,-16);ctx.lineTo(3,-18);ctx.lineTo(8,0)};
+    ctx.fillStyle="rgba(255,215,40,.9)";ctx.beginPath();b();ctx.fill();sketch(ELINE,1.5/s,b)}));
+  else if(look==="hungry")[[dragon.wing1,-.55],[dragon.wing2,.5]].forEach(([pts,rot])=>at(wi+3,rot,.6,s=>{ctx.translate(0,-30);
+    ctx.fillStyle="rgba(255,254,251,.9)";ctx.beginPath();ctx.ellipse(0,0,13,28,0,0,7);ctx.fill();sketch(ELINE,1.6/s,()=>{ctx.ellipse(0,0,14,30,0,0,7)})}));
+  else if(look==="robot")[[-.45,1],[.4,-1]].forEach(([rot,f])=>at(wi,rot,1.1,s=>{ctx.scale(f,1);ctx.fillStyle="rgba(205,215,226,.95)";ctx.fillRect(-12,-46,24,40);
+    sketch(ELINE,1.5/s,()=>{ctx.rect(-12,-46,24,40);ctx.moveTo(0,-46);ctx.lineTo(0,-6);ctx.moveTo(-12,-33);ctx.lineTo(12,-33);ctx.moveTo(-12,-19);ctx.lineTo(12,-19);ctx.moveTo(0,-6);ctx.lineTo(0,0)})}));
+  else if(look==="shadow")[[-.45,1],[.4,-1]].forEach(([rot,f])=>at(wi,rot,1.45,s=>{ctx.scale(f,1);
+    const tips=[[-24,-30],[-10,-50],[10,-46],[24,-28]];
+    const edge=()=>{ctx.moveTo(-4,0);ctx.lineTo(tips[0][0],tips[0][1]);for(let i=0;i<tips.length-1;i++){const a=tips[i],b=tips[i+1];ctx.quadraticCurveTo((a[0]+b[0])/2,(a[1]+b[1])/2+12,b[0],b[1])}ctx.quadraticCurveTo(16,-10,6,0)};
+    ctx.fillStyle="rgba(58,40,86,.92)";ctx.beginPath();edge();ctx.fill();sketch(ESOFT,1.6/s,()=>{tips.forEach(([x,y])=>{ctx.moveTo(0,0);ctx.lineTo(x,y)})})}))}
+function drawDragonHead(x,y,w,dead,faceO,mouthO){const look=DK.look,s=w/22*1.45*({king:1.15,shadow:1.2,hungry:1.25,emperor:1.25}[look]||1),m=mouthO==null?dragon.mouth:mouthO,op=m*(look==="hungry"?19:13),face=faceO||dragon.face||-1;
+  ctx.save();ctx.translate(x,y);ctx.scale(-face*s,s);ctx.translate(-6,0);
+  const L=1.7/s;
+  // every dragon keeps Kit's open "<" jaws from page 5; the head around them changes
+  const heads={
+    zig:()=>{ctx.moveTo(16,-13);ctx.quadraticCurveTo(2,-19,-12,-15);ctx.lineTo(-36,-9-op*.3);ctx.lineTo(-38,-3-op);ctx.lineTo(-15,1);ctx.lineTo(-37,5+op);ctx.lineTo(-34,10+op*.6);ctx.quadraticCurveTo(-14,15,0,14);ctx.lineTo(16,12)},
+    plates:()=>{ctx.moveTo(16,-14);ctx.quadraticCurveTo(0,-26,-20,-19);ctx.quadraticCurveTo(-38,-14,-38,-3-op);ctx.lineTo(-15,1);ctx.lineTo(-38,5+op);ctx.quadraticCurveTo(-36,17,-14,16);ctx.lineTo(16,13)},
+    rings:()=>{ctx.moveTo(16,-11);ctx.lineTo(-8,-13);ctx.lineTo(-42,-6-op*.4);ctx.lineTo(-44,-2-op);ctx.lineTo(-16,1);ctx.lineTo(-43,4+op);ctx.lineTo(-38,8+op*.6);ctx.lineTo(0,12);ctx.lineTo(16,11)},
+    flames:()=>{ctx.moveTo(16,-13);ctx.quadraticCurveTo(2,-20,-14,-16);ctx.lineTo(-38,-8-op*.3);ctx.lineTo(-40,-3-op);ctx.lineTo(-15,1);ctx.lineTo(-39,5+op);ctx.lineTo(-35,11+op*.6);ctx.quadraticCurveTo(-14,15,0,14);ctx.lineTo(16,12)},
+    king:()=>{ctx.moveTo(18,-16);ctx.quadraticCurveTo(2,-22,-14,-18);ctx.lineTo(-38,-10-op*.3);ctx.lineTo(-40,-3-op);ctx.lineTo(-15,1);ctx.lineTo(-39,5+op);ctx.lineTo(-36,12+op*.6);ctx.quadraticCurveTo(-14,18,0,17);ctx.lineTo(18,15)}};
+  heads.lava=heads.flames;heads.quill=heads.plates;heads.emperor=heads.king;heads.ice=heads.zig;heads.twohead=heads.zig;heads.ghost=heads.plates;heads.storm=heads.flames;heads.hungry=heads.king;heads.shadow=heads.king;
+  heads.robot=()=>{ctx.moveTo(16,-15);ctx.lineTo(-30,-15);ctx.lineTo(-38,-3-op);ctx.lineTo(-15,1);ctx.lineTo(-38,5+op);ctx.lineTo(-30,13);ctx.lineTo(16,13)};
+  const head=heads[look]||heads.zig;
+  if(look==="robot")sketch(ELINE,L,()=>{ctx.moveTo(6,-15);ctx.lineTo(10,-32)});
+  if(look==="robot"){ctx.fillStyle="#d23a3a";ctx.beginPath();ctx.arc(10,-33,3,0,7);ctx.fill()}
+  if(look==="shadow"){const horn=(x0,h)=>()=>{ctx.moveTo(x0,-16);ctx.quadraticCurveTo(x0+4,-34-h,x0+22,-40-h);ctx.quadraticCurveTo(x0+10,-30,x0+8,-15)};[[-6,0],[6,4]].forEach(([x0,h])=>{ctx.fillStyle=ELINE;ctx.beginPath();horn(x0,h)();ctx.fill()})}
+  // things behind the head
+  if(look==="rings"){const ear=()=>{ctx.moveTo(-2,-12);ctx.lineTo(-8,-40);ctx.lineTo(10,-12)};ctx.fillStyle=ESOFT;ctx.beginPath();ear();ctx.fill();sketch(ELINE,L,ear);sketch(EDARK,L*.8,()=>{ctx.moveTo(0,-15);ctx.lineTo(-5,-32)})}
+  if(look==="king"){const beard=()=>{ctx.moveTo(-26,12+op*.6);ctx.lineTo(-24,26+op*.6);ctx.lineTo(-18,16+op*.5);ctx.lineTo(-14,30+op*.5);ctx.lineTo(-9,17+op*.4);ctx.lineTo(-4,27+op*.3);ctx.lineTo(0,16)};ctx.fillStyle=ESOFT;ctx.beginPath();beard();ctx.fill();sketch(ELINE,L,beard)}
+  ctx.fillStyle=PAPER;ctx.beginPath();head();ctx.closePath();ctx.fill();
+  const tipX=look==="rings"?-44:(look==="zig"||look==="ice"||look==="twohead"||look==="robot")?-38:-40;
+  if(m>.15){ctx.fillStyle=EDARK;ctx.beginPath();ctx.moveTo(tipX,-3-op);ctx.lineTo(-15,1);ctx.lineTo(tipX+1,5+op);ctx.closePath();ctx.fill();
+    ctx.fillStyle=PAPER;[-33,-27,-21].forEach((tx,i)=>{const f=(tx+38)/23;ctx.beginPath();ctx.moveTo(tx,-3-op*(1-f)+f*4-2);ctx.lineTo(tx+2.5,-3-op*(1-f)+f*4+3);ctx.lineTo(tx+5,-3-op*(1-f)+f*4-2);ctx.fill()})}
+  if(look==="hungry"&&m>.15){ctx.fillStyle=PAPER;[-34,-28,-22].forEach(tx=>{const yy=5+op;ctx.beginPath();ctx.moveTo(tx,yy);ctx.lineTo(tx+2.5,yy-5);ctx.lineTo(tx+5,yy);ctx.fill()})}
+  if(look==="rings"){[-34,-26].forEach(fx=>{const yy=-4-op*.75;const fang=()=>{ctx.moveTo(fx,yy);ctx.lineTo(fx+2,yy+9);ctx.lineTo(fx+4,yy)};ctx.fillStyle=PAPER;ctx.beginPath();fang();ctx.fill();sketch(ELINE,L*.8,fang)})}
+  sketch(ELINE,L,head);
+  // horns / crown
+  if(look==="zig")sketch(ELINE,L,()=>{ctx.moveTo(-2,-16);ctx.lineTo(2,-30);ctx.lineTo(7,-16);ctx.moveTo(6,-15);ctx.lineTo(13,-27);ctx.lineTo(14,-13)});
+  if(look==="ice"){[[-2,-34],[9,-30]].forEach(([x0,y0])=>{const c=()=>{ctx.moveTo(x0-4,-15);ctx.lineTo(x0,y0);ctx.lineTo(x0+4,-15)};ctx.fillStyle=ESOFT;ctx.beginPath();c();ctx.fill();sketch(ELINE,L,c)})}
+  if(look==="twohead")sketch(ELINE,L,()=>{ctx.moveTo(-2,-16);ctx.lineTo(2,-30);ctx.lineTo(7,-16)});
+  if(look==="storm"){const b=()=>{ctx.moveTo(-2,-16);ctx.lineTo(-8,-28);ctx.lineTo(0,-27);ctx.lineTo(-4,-40);ctx.lineTo(10,-24);ctx.lineTo(3,-25);ctx.lineTo(8,-15)};ctx.fillStyle="#ffd200";ctx.beginPath();b();ctx.fill();sketch(ELINE,L,b)}
+  if(look==="hungry")sketch(ELINE,L,()=>{ctx.moveTo(-2,-19);ctx.arc(2,-19,4,Math.PI,0);ctx.moveTo(8,-18);ctx.arc(12,-18,4,Math.PI,0)});
+  if(look==="plates"){sketch(ELINE,L,()=>{ctx.moveTo(-34,-13);ctx.arc(-31,-15,3,Math.PI,0);ctx.moveTo(0,-22);ctx.arc(4,-22,4,Math.PI,0)})}
+  if(look==="flames"){const horn=(x0)=>()=>{ctx.moveTo(x0,-16);ctx.quadraticCurveTo(x0-8,-28,x0+2,-38);ctx.quadraticCurveTo(x0+1,-28,x0+8,-16)};
+    [-4,8].forEach(x0=>{ctx.fillStyle="rgba(250,200,70,.85)";ctx.beginPath();horn(x0)();ctx.fill();sketch(ELINE,L,horn(x0))})}
+  if(look==="lava")[[-6,-34],[8,-30]].forEach(([x0,y0])=>{const h=()=>{ctx.moveTo(x0-5,-15);ctx.lineTo(x0,y0);ctx.lineTo(x0+6,-15)};ctx.fillStyle=ESOFT;ctx.beginPath();h();ctx.fill();sketch(ELINE,L,h)});
+  if(look==="quill")sketch(EDARK,L,()=>{[[-14,-30],[-4,-36],[6,-36],[16,-30]].forEach(([x,y],i)=>{ctx.moveTo(-14+i*8,-17);ctx.lineTo(x,y)})});
+  if(look==="emperor"){const crown=()=>{ctx.moveTo(-8,-18);ctx.lineTo(-12,-40);ctx.lineTo(-2,-30);ctx.lineTo(4,-46);ctx.lineTo(10,-30);ctx.lineTo(20,-40);ctx.lineTo(18,-16)};
+    ctx.fillStyle="#f2c230";ctx.beginPath();crown();ctx.closePath();ctx.fill();sketch("#b8860b",L,crown);["#e2506b","#3f57b8","#2f8a4c"].forEach((c,i)=>{ctx.fillStyle=c;ctx.beginPath();ctx.arc(-4+i*8,-25,2.3,0,7);ctx.fill()})}
+  if(look==="king"){const crown=()=>{ctx.moveTo(-6,-17);ctx.lineTo(-8,-36);ctx.lineTo(0,-27);ctx.lineTo(5,-40);ctx.lineTo(10,-27);ctx.lineTo(18,-36);ctx.lineTo(16,-15)};
+    ctx.fillStyle="#f2c230";ctx.beginPath();crown();ctx.closePath();ctx.fill();sketch("#b8860b",L,crown);ctx.fillStyle="#e2506b";ctx.beginPath();ctx.arc(5,-24,2.4,0,7);ctx.fill()}
+  // eye
+  if(dead)sketch(EDARK,L*1.1,()=>{ctx.moveTo(-16,-11);ctx.lineTo(-8,-3);ctx.moveTo(-8,-11);ctx.lineTo(-16,-3)});
+  else if(look==="plates"){ // sneaky half-closed eye
+    sketch(ELINE,L*.9,()=>{ctx.ellipse(-12,-8,5,4,0,0,7)});ctx.fillStyle=EDARK;ctx.beginPath();ctx.arc(-14,-7,1.8,0,7);ctx.fill();
+    ctx.fillStyle=ESOFT;ctx.beginPath();ctx.ellipse(-12,-8,5.5,4.5,0,Math.PI,0);ctx.fill();sketch(EDARK,L,()=>{ctx.moveTo(-18,-8);ctx.lineTo(-6,-8)})}
+  else if(look==="lava"){ctx.save();ctx.shadowColor="#ff7a1a";ctx.shadowBlur=10;ctx.fillStyle="#ff9a2a";ctx.beginPath();ctx.ellipse(-12,-8,5,3.4,-.2,0,7);ctx.fill();ctx.restore();sketch(EDARK,L,()=>{ctx.moveTo(-19,-14);ctx.lineTo(-6,-11)})}
+  else if(look==="emperor"){ctx.fillStyle="#f2c230";ctx.beginPath();for(let k=0;k<10;k++){const a=k*Math.PI/5-Math.PI/2,r=k%2?2.6:6;ctx.lineTo(-12+Math.cos(a)*r,-8+Math.sin(a)*r)}ctx.closePath();ctx.fill();sketch(EDARK,L*.8,()=>{for(let k=0;k<10;k++){const a=k*Math.PI/5-Math.PI/2,r=k%2?2.6:6;k?ctx.lineTo(-12+Math.cos(a)*r,-8+Math.sin(a)*r):ctx.moveTo(-12+Math.cos(a)*r,-8+Math.sin(a)*r)}ctx.closePath()})}
+  else if(look==="ghost"){ctx.fillStyle=EDARK;ctx.beginPath();ctx.ellipse(-12,-8,4,5.5,0,0,7);ctx.fill()}
+  else if(look==="robot"){ctx.fillStyle="#d23a3a";ctx.fillRect(-22,-11,15,6);sketch(EDARK,L,()=>{ctx.rect(-22,-11,15,6)})}
+  else if(look==="shadow"){ctx.save();ctx.shadowColor="#ff3030";ctx.shadowBlur=10;ctx.fillStyle="#ff4040";ctx.beginPath();ctx.ellipse(-12,-8,5,3,-.2,0,7);ctx.fill();ctx.restore()}
+  else if(look==="rings"){sketch(ELINE,L*.9,()=>{ctx.ellipse(-14,-6,5,2.6,-.25,0,7)});ctx.fillStyle="#d23a3a";ctx.beginPath();ctx.arc(-15,-6,1.8,0,7);ctx.fill()}
+  else{sketch(ELINE,L*.9,()=>{ctx.ellipse(-12,-7,4,4,0,0,7)});ctx.fillStyle=EDARK;ctx.beginPath();ctx.arc(-13,-7,1.8,0,7);ctx.fill();
+    sketch(EDARK,L,()=>{ctx.moveTo(-19,-14);ctx.lineTo(-6,-11)})}
+  ctx.fillStyle=EDARK;ctx.beginPath();ctx.arc(tipX+7,-8-op*.3,1.4,0,7);ctx.fill();
+  if((look==="ice"||look==="robot")&&!dead&&dragon.fireMouth>0){ctx.fillStyle=look==="ice"?"rgba(190,235,250,.8)":"rgba(255,170,60,.7)";ctx.beginPath();ctx.moveTo(-36,1);ctx.quadraticCurveTo(-52,-10,-64,1);ctx.quadraticCurveTo(-52,12,-36,1);ctx.fill()}
+  if(look==="flames"&&!dead&&m>.3){const fl=Math.sin(performance.now()/60);ctx.fillStyle="rgba(245,150,40,.75)";ctx.beginPath();ctx.moveTo(-36,1);ctx.quadraticCurveTo(-56,-16-fl*4,-82,-2);ctx.quadraticCurveTo(-70,2,-84,8);ctx.quadraticCurveTo(-58,20+fl*4,-36,1);ctx.fill();
+    ctx.fillStyle="rgba(250,215,70,.9)";ctx.beginPath();ctx.moveTo(-36,1);ctx.quadraticCurveTo(-50,-6,-62,1);ctx.quadraticCurveTo(-50,9,-36,1);ctx.fill()}
+  ctx.restore()}
+
+
+function bodySamples(){const out=[];const tr=cat.trail;let acc=0;out.push({x:tr[0].x,y:tr[0].y,d:0});
+  for(let i=1;i<tr.length&&acc<cat.len;i++){const ax=tr[i-1].x,ay=tr[i-1].y,bx=tr[i].x,by=tr[i].y;const seg=Math.hypot(bx-ax,by-ay);if(!seg)continue;
+    let t=(4-(acc%4))%4||4;while(t<=seg&&acc+t<=cat.len){out.push({x:ax+(bx-ax)*t/seg,y:ay+(by-ay)*t/seg,d:acc+t});t+=4}acc+=seg}
+  return out}
+const giantness=()=>Math.max(0,Math.min(1,(cat.k-1)/1.2)); // 0 normal .. 1 fully mega
+function bodyW(){return BW*(1+(cat.k-1)*1.5)} // Mega Me's tube is fatter (page 4)
+function widthAt(d){const w=bodyW(),f=d/cat.len;return f<.85?w:w*Math.max(.14,(1-f)/.15)} // long taper to a point, like page 1
+
+function drawCat(t){
+  const S=bodySamples();if(S.length<3)return;const k=cat.k,g=giantness(),w=bodyW(),ow=1.7*(1+(k-1)*.8);
+  // tube: outline pass then paper pass, tail first
+  ctx.fillStyle=SOFT;for(let i=S.length-1;i>=0;i--){ctx.beginPath();ctx.arc(S[i].x+.6,S[i].y+.5,widthAt(S[i].d)/2+ow*1.2,0,7);ctx.fill()}
+  ctx.fillStyle=LINE;for(let i=S.length-1;i>=0;i--){ctx.beginPath();ctx.arc(S[i].x,S[i].y,widthAt(S[i].d)/2+ow*.85,0,7);ctx.fill()}
+  ctx.fillStyle=PAPER;for(let i=S.length-1;i>=0;i--){ctx.beginPath();ctx.arc(S[i].x,S[i].y,widthAt(S[i].d)/2,0,7);ctx.fill()}
+  // stripes: short dark strokes about every half body-width, slightly crooked (page 1). Mega Me has none (page 4).
+  {ctx.save();let next=w*.9,n=0;const sw=1.9*(1+(k-1)*.6);
+    for(let i=1;i<S.length-1;i++){if(S[i].d<next)continue;next+=Math.max(3.2,widthAt(S[i].d)*(.36+hash(n*1.7)*.12));n++;const p=S[i],q=S[i+1],dx=q.x-p.x,dy=q.y-p.y,m=Math.hypot(dx,dy)||1,ux=dx/m,uy=dy/m,nx=-uy,ny=ux;
+      const hw=widthAt(p.d)/2,a=hw*(.95-hash(n)*.25),b=hw*(.95-hash(n+9)*.3),sl=w*.07+(hash(n+3)-.5)*w*.12;
+      sketch(DARK,sw,()=>{ctx.moveTo(p.x+nx*a+ux*sl,p.y+ny*a+uy*sl);ctx.lineTo(p.x-nx*b-ux*sl*.4,p.y-ny*b-uy*sl*.4)})}
+    ctx.restore()}
+  // sticks: always upright, like the drawing; one just behind the neck, one about halfway down
+  if(g<1){ctx.save();ctx.globalAlpha=1-g;
+    const spots=[BW*3.2,cat.len*.52];spots.forEach((d,li)=>{const p=S[Math.min(S.length-1,Math.round(d/4))];drawStick(p.x,p.y,li,t)});ctx.restore()}
+  drawHead(S[0].x,S[0].y,t)}
+
+function drawStick(x,y,li,t){const sw=Math.sin(cat.walk+li*2.2)*.16,bob=Math.cos(cat.walk+li*2.2)*BW*.12;
+  ctx.save();ctx.translate(x,y+bob);ctx.rotate(sw);
+  const half=BW*.42,up=BW*(li?3.3:2.9),dn=BW*(li?3.9:3.4);
+  // two parallel lines, about as wide apart as the body
+  sketch(LINE,1.7,()=>{ctx.moveTo(-half,-up);ctx.lineTo(-half,dn);ctx.moveTo(half,-up);ctx.lineTo(half,dn)});
+  // feet: rounded paddles, smaller on top, bigger at the bottom, three toe lines each
+  paddle(0,-up,BW*(li?2.7:1.6),BW*(li?2.3:1.7),-1);
+  paddle(0,dn,BW*(li?3.3:3.2),BW*(li?2.3:2.0),1);
+  ctx.restore()}
+function paddle(x,y,pw,ph,dir){ctx.save();ctx.translate(x,y);ctx.scale(1,dir);
+  const shape=()=>{ctx.moveTo(-pw*.5,ph*.12);ctx.bezierCurveTo(-pw*.66,ph*1.25,pw*.66,ph*1.25,pw*.5,ph*.12);ctx.quadraticCurveTo(pw*.2,-ph*.05,0,0);ctx.quadraticCurveTo(-pw*.2,-ph*.05,-pw*.5,ph*.12)};
+  ctx.fillStyle=PAPER;ctx.beginPath();shape();ctx.fill();sketch(LINE,1.7,shape);
+  sketch(DARK,1.9,()=>{[-.26,0,.24].forEach((f,i)=>{ctx.moveTo(pw*f,ph*(.2+hash(i+pw)*.08));ctx.lineTo(pw*f*1.08,ph*.72)})});
+  ctx.restore()}
+
+// head traced from page 1 (facing left), in Kit's own pixels; 1 body-width = 40 of his pixels
+// John 2026-11-09 bug: when GiGantic, a dragon touching your neck/body got eaten. The bite now uses
+// the face you actually see: the head is drawn ahead of the body point, so measure from the drawn face.
+function catBite(){const k=cat.k,mega=giantness()>=.5,s=BW/40*1.05*(1+(k-1)*(mega?.85:1.1));
+  const fx=mega?-15:-40,fy=mega?5:15,r=mega?38:40;
+  return{x:cat.x+(-cat.face*s)*(fx-30),y:cat.y+s*fy,r:r*s}}
+function drawHead(x,y,t){
+  const k=cat.k,g=giantness(),pop=1+.14*Math.sin(Math.min(1,cat.chompT/.18)*Math.PI);
+  const mega=g>=.5,s=BW/40*1.05*(1+(k-1)*(mega?.85:1.1))*pop;
+  ctx.save();ctx.translate(x,y);ctx.scale(-cat.face*s,s);ctx.translate(-30,0);
+  const L=1.45/(BW/40)*(mega?1.3:1),D=1.7/(BW/40)*(mega?1.3:1); // pencil weight
+  const m=cat.mouth,jaw=m*32; // 0 closed .. 1 wide open
+  const sq=cat.chompT>0?.35:1,blink=(cat.blinkOff?1:(Math.sin(t*.0013)>.985)?.15:1),ey=Math.min(sq,blink);
+  if(!mega){
+    // page 1: teardrop head, round face on the left, tapering into the neck
+    const outline=()=>{ctx.moveTo(75,-35);ctx.lineTo(30,-33);ctx.lineTo(0,-33);ctx.quadraticCurveTo(-35,-31,-58,-22);ctx.bezierCurveTo(-82,-10,-84,26,-64,40);
+      ctx.bezierCurveTo(-48,54+jaw*.6,-18,58+jaw,10,54+jaw*.7);ctx.bezierCurveTo(42,48+jaw*.3,64,30,74,10);ctx.lineTo(78,-6)};
+    ctx.fillStyle=PAPER;ctx.beginPath();outline();ctx.closePath();ctx.fill();sketch(LINE,L,outline);
+    sketch(LINE,L,()=>{ctx.moveTo(-58,-24);ctx.lineTo(-46,-70);ctx.lineTo(-27,-31);ctx.moveTo(-2,-33);ctx.lineTo(15,-72);ctx.lineTo(30,-33)});
+    sketch(LINE,L*.8,()=>{ctx.moveTo(-49,-36);ctx.lineTo(-45,-58);ctx.moveTo(10,-40);ctx.lineTo(15,-60)});
+    // eyes: little circles with a dot; squint on a chomp
+    [[-48,4],[6,-2]].forEach(([ex,eyy])=>{sketch(LINE,L*.85,()=>{ctx.ellipse(ex,eyy,7,7*ey,0,0,7)});ctx.fillStyle=DARK;ctx.beginPath();ctx.ellipse(ex+1,eyy+1,2.6,2.6*ey,0,0,7);ctx.fill()});
+    if(m>.08)openMouth(-40,0,24,jaw,m,L);
+    else sketch(LINE,L*.9,()=>{ctx.moveTo(-36,30);ctx.quadraticCurveTo(-26,40,-20,44);ctx.quadraticCurveTo(-13,40,-4,29)});
+    // whiskers fan out from the middle of the face, nose line
+    sketch(LINE,L*.85,()=>{[[-46,6],[-48,18],[-42,30]].forEach(([wx,wy])=>{ctx.moveTo(-27,18);ctx.lineTo(wx,wy)});[[2,6],[6,17],[1,29]].forEach(([wx,wy])=>{ctx.moveTo(-13,18);ctx.lineTo(wx,wy)})});
+    sketch(DARK,D*.8,()=>{ctx.moveTo(-20,6);ctx.lineTo(-19,24)});
+  }else{
+    // page 4, Mega Me: squarer head with a pointed chin, dash eyes, a nose dot and a big U smile
+    const outline=()=>{ctx.moveTo(60,-16);ctx.lineTo(22,-40);ctx.quadraticCurveTo(0,-47,-14,-45);ctx.lineTo(-41,-9);ctx.quadraticCurveTo(-44,6,-36,18);
+      ctx.lineTo(9,48+jaw*.8);ctx.quadraticCurveTo(30,36,40,22);ctx.lineTo(60,9)};
+    ctx.fillStyle=PAPER;ctx.beginPath();outline();ctx.closePath();ctx.fill();sketch(LINE,L,outline);
+    sketch(LINE,L,()=>{ctx.moveTo(-27,-27);ctx.lineTo(-18,-72);ctx.lineTo(-4,-45);ctx.moveTo(9,-45);ctx.lineTo(22,-75);ctx.lineTo(31,-38)});
+    [[-13.5,-13.5],[13.5,-18]].forEach(([ex,eyy])=>sketch(DARK,D,()=>{ctx.moveTo(ex,eyy-6*ey);ctx.lineTo(ex,eyy+6*ey)}));
+    ctx.fillStyle=DARK;ctx.beginPath();ctx.arc(0,3,2.6,0,7);ctx.fill();
+    if(m>.08)openMouth(-16,22,10,jaw,m,L);
+    else sketch(LINE,L,()=>{ctx.moveTo(-16,9);ctx.quadraticCurveTo(-2,40,22,12)});
+  }
+  ctx.restore()}
+// a chomping mouth between x0 and x1 at height y; the jaw drops as m grows
+function openMouth(x0,x1,y,jaw,m,L){const mx=(x0+x1)/2,open=()=>{ctx.moveTo(x0,y);ctx.bezierCurveTo(x0+4,y+6+jaw*1.1,x1-4,y+6+jaw*1.1,x1,y);ctx.quadraticCurveTo(mx,y+6,x0,y)};
+  ctx.fillStyle=MOUTH;ctx.beginPath();open();ctx.fill();sketch(LINE,L,open);
+  ctx.fillStyle=PAPER;[x0+7,x1-7].forEach(fx=>{ctx.beginPath();ctx.moveTo(fx-4,y+2);ctx.lineTo(fx,y+2+8*m);ctx.lineTo(fx+4,y+2.5);ctx.fill()})}
+
+// ---------- little dragons & snake eggs (page 2) ----------
+const items=[];
+// Kit's treasure is coloured in with round scribbles: several loose loops whose centre wanders
+function scribble(rx,ry,seed,loops=4){const pts=[],per=36;for(let i=0;i<=loops*per;i++){const lp=i/per,a=lp*Math.PI*2+hash(seed)*6,
+  r=.55+.42*(.5+.5*Math.sin(lp*1.7+seed))+.06*Math.sin(a*2+seed),cx=Math.sin(lp*2.3+seed)*rx*.16,cy=Math.cos(lp*1.9+seed*2)*ry*.14;pts.push([cx+Math.cos(a)*rx*r,cy+Math.sin(a)*ry*r])}return pts}
+function spawn(kind){const m=60;let x,y,tries=0;do{x=m+Math.random()*(W-2*m);y=m+70+Math.random()*(H-2*m-70);tries++}while(Math.hypot(x-cat.x,y-cat.y)<170&&tries<20);
+  const seed=Math.random()*1000;
+  if(kind==="glow")items.push({kind,x,y,r:20,seed,ring:scribble(15,20,seed,1),pts:scribble(13,18,seed+3,4)});
+  else if(kind==="dragon")items.push({kind,x,y,r:26,seed,vx:(Math.random()-.5)*36,vy:(Math.random()-.5)*36,pts:scribble(12,24,seed,5),pts2:scribble(13,25,seed+50,5)});
+  else{const sz=Math.random();const rx=sz<.35?5+Math.random()*2:sz<.75?12+Math.random()*2:17+Math.random()*3,ry=rx*(1.3+hash(seed)*.3);items.push({kind:"egg",x,y,r:ry+3,seed,v:rx>9&&Math.random()<.7,rx,ry,pts:scribble(rx,ry,seed,rx<8?5:6),ring:scribble(rx,ry,seed+1,1.05)})}}
+function fillBoard(){while(items.filter(i=>i.kind!=="glow").length<30)spawn(Math.random()<.35?"dragon":"egg")}
+function path(pts,x,y,sx=1,rot=0){return()=>{ctx.save();ctx.translate(x,y);ctx.rotate(rot);ctx.scale(sx,1);pts.forEach(([a,b],i)=>i?ctx.lineTo(a,b):ctx.moveTo(a,b));ctx.restore()}}
+function drawItem(it,t){
+  if(it.kind==="egg"){sketch(SOFT,2,path(it.pts,it.x,it.y));ctx.save();ctx.globalAlpha=.7;sketch(LINE,1.5,path(it.ring,it.x,it.y));ctx.restore();
+    if(it.v)sketch(LINE,1.6,()=>{ctx.moveTo(it.x-it.rx*.4,it.y-it.ry*.45);ctx.quadraticCurveTo(it.x-it.rx*.15,it.y+it.ry*.2,it.x,it.y+it.ry*.45);ctx.quadraticCurveTo(it.x+it.rx*.1,it.y-it.ry*.1,it.x+it.rx*.35,it.y-it.ry*.5)})}
+  else if(it.kind==="dragon"){const flap=.5+.5*Math.abs(Math.sin(t*.008+it.seed));
+    // the double shape from page 2: two scribbled wings crossing in the middle
+    sketch(SOFT,2,path(it.pts,it.x-8,it.y+2,flap,-.3));sketch(SOFT,2,path(it.pts2,it.x+9,it.y-4,flap,.55));
+    ctx.save();ctx.globalAlpha=.75;sketch(LINE,1.8,path(it.pts.slice(0,60),it.x-4,it.y+4,flap*.7,-.2));ctx.restore()}
+  else{const g=.5+.5*Math.sin(t*.006);ctx.save();ctx.shadowColor=GOLD;ctx.shadowBlur=18+16*g;ctx.fillStyle="rgba(242,182,50,"+(.32+.25*g)+")";ctx.beginPath();ctx.ellipse(it.x,it.y,17+3*g,22+3*g,0,0,7);ctx.fill();ctx.restore();
+    sketch(SOFT,1.6,path(it.pts,it.x,it.y));sketch(LINE,1.8,path(it.ring,it.x,it.y));
+    ctx.save();ctx.globalAlpha=.8;sketch(GOLD,2,()=>{for(let i=0;i<8;i++){const a=i/8*Math.PI*2+t*.001,r1=28+4*g,r2=36+6*g;ctx.moveTo(it.x+Math.cos(a)*r1,it.y+Math.sin(a)*r1*1.2);ctx.lineTo(it.x+Math.cos(a)*r2,it.y+Math.sin(a)*r2*1.2)}});ctx.restore()}}
+
+// ---------- pop words ----------
+const pops=[];
+function pop(text,x,y,size=34,color=DARK,life=1){pops.push({text,x,y,size,color,t:0,life})}
+function popS(text,y,size=34,color=DARK,life=1){pops.push({text,x:0,y,size,color,t:0,life,screen:true})}
+
+// ---------- sound ----------
+let ac=null;
+// iPad/iPhone: sound can only start from a tap, and it goes "interrupted" after the app is switched away.
+// audioSession "playback" lets sound play even when the iPad's silent switch is on (Safari 16.4+).
+function audio(){if(!ac){try{ac=new (window.AudioContext||window.webkitAudioContext)();
+    try{if(navigator.audioSession)navigator.audioSession.type="playback"}catch(e){}
+    // play one silent sample: older iOS only unlocks Web Audio once something has played inside a tap
+    try{const b=ac.createBuffer(1,1,22050),s=ac.createBufferSource();s.buffer=b;s.connect(ac.destination);s.start(0)}catch(e){}}catch(e){}}
+  if(ac&&ac.state!=="running"&&ac.resume)ac.resume().catch(()=>{})}
+["touchend","pointerup","click","keydown"].forEach(ev=>addEventListener(ev,audio,{passive:true}));
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&ac)audio()});
+function crunch(){if(muted||!ac)return;const n=ac.createBuffer(1,ac.sampleRate*.12,ac.sampleRate),d=n.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2);
+  const s=ac.createBufferSource();s.buffer=n;const f=ac.createBiquadFilter();f.type="bandpass";f.frequency.value=1800;const g=ac.createGain();g.gain.value=.5;s.connect(f).connect(g).connect(ac.destination);s.start();
+  const o=ac.createOscillator(),og=ac.createGain();o.type="square";o.frequency.setValueAtTime(420,ac.currentTime);o.frequency.exponentialRampToValueAtTime(160,ac.currentTime+.1);og.gain.setValueAtTime(.08,ac.currentTime);og.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.12);o.connect(og).connect(ac.destination);o.start();o.stop(ac.currentTime+.13)}
+function boing(){if(muted||!ac)return;const o=ac.createOscillator(),g=ac.createGain(),t0=ac.currentTime;o.type="sine";o.frequency.setValueAtTime(330,t0);o.frequency.exponentialRampToValueAtTime(140,t0+.18);g.gain.setValueAtTime(.15,t0);g.gain.exponentialRampToValueAtTime(.001,t0+.22);o.connect(g).connect(ac.destination);o.start(t0);o.stop(t0+.24)}
+function tune(up){if(muted||!ac)return;const notes=up?[262,330,392,523,659,784]:[523,392,262];notes.forEach((f,i)=>{const o=ac.createOscillator(),g=ac.createGain(),t0=ac.currentTime+i*.09;o.type="triangle";o.frequency.value=f;g.gain.setValueAtTime(.12,t0);g.gain.exponentialRampToValueAtTime(.001,t0+.2);o.connect(g).connect(ac.destination);o.start(t0);o.stop(t0+.22)})}
+
+// ---------- input ----------
+function toWorld(e){const cw=innerWidth,ch=innerHeight;const ox=(cw-VW*scale)/2,oy=(ch-VH*scale)/2;return{x:(e.clientX-ox)/scale+camX,y:(e.clientY-oy)/scale+camY}}
+// fingers and target hold SCREEN positions; a finger held still keeps steering correctly while the board scrolls
+const scr=e=>({clientX:e.clientX,clientY:e.clientY});
+let down=false;
+// v15: track each finger, so a second finger (or a friend's hand) lifting doesn't stop the steering finger.
+// The most recent finger steers.
+const fingers=new Map();
+function steer(){if(!fingers.size){down=false;target=null;return}down=true;target=[...fingers.values()].pop()}
+cv.addEventListener("pointerdown",e=>{e.preventDefault();try{cv.setPointerCapture(e.pointerId)}catch(_){}fingers.delete(e.pointerId);fingers.set(e.pointerId,scr(e));steer();audio()});
+cv.addEventListener("pointermove",e=>{if(!fingers.has(e.pointerId))return;fingers.set(e.pointerId,scr(e));if([...fingers.keys()].pop()===e.pointerId)target=fingers.get(e.pointerId)});
+const lift=e=>{fingers.delete(e.pointerId);steer()};
+addEventListener("pointerup",lift);addEventListener("pointercancel",lift);cv.addEventListener("lostpointercapture",lift);
+addEventListener("blur",()=>{fingers.clear();steer();keys={}});
+// iPad Safari ignores user-scalable=no, so stop pinch-zoom, double-tap zoom and page bounce by hand.
+// Overlays (start / game over) can still scroll if they don't fit.
+["gesturestart","gesturechange","gestureend"].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault(),{passive:false}));
+document.addEventListener("touchmove",e=>{if(e.touches.length>1||!e.target.closest(".overlay"))e.preventDefault()},{passive:false});
+let lastTouchEnd=0;document.addEventListener("touchend",e=>{const n=Date.now();if(n-lastTouchEnd<350&&!e.target.closest("button"))e.preventDefault();lastTouchEnd=n},{passive:false});
+cv.addEventListener("contextmenu",e=>e.preventDefault());
+addEventListener("keydown",e=>{const k=(e.key||"").toLowerCase();if(k.startsWith("arrow")||(k.length===1&&"wasd".includes(k))){keys[k]=true;e.preventDefault();audio()}});
+addEventListener("keyup",e=>{keys[(e.key||"").toLowerCase()]=false});
+document.getElementById("mute").addEventListener("click",e=>{muted=!muted;e.currentTarget.textContent=muted?"🔇":"🔊"});
+document.getElementById("playBtn").addEventListener("click",()=>newGame());
+document.getElementById("againBtn").addEventListener("click",()=>newGame());
+// Kit 2026-11-12: "a button that when you loos you restart the levle". When you lose, try the same boss again.
+document.getElementById("retryBtn").addEventListener("click",()=>newGame(checkpoint));
+
+// ---------- update ----------
+let sinceGlow=0,eatenSinceGlow=0;
+function bite(it){cat.chompT=.32;cat.chewT=.6;
+  for(let i=0;i<7;i++){const a=Math.random()*Math.PI*2;crumbs.push({x:it.x,y:it.y,vx:Math.cos(a)*(60+Math.random()*90),vy:Math.sin(a)*(60+Math.random()*90)-40,t:0,r:1.5+Math.random()*2.5})}}
+function update(dt,t){
+  let want=null;
+  if(target){const tw=toWorld(target),dx=tw.x-cat.x,dy=tw.y-cat.y;if(Math.hypot(dx,dy)>18*cat.k)want=Math.atan2(dy,dx)}
+  else{const kx=(keys.arrowright||keys.d?1:0)-(keys.arrowleft||keys.a?1:0),ky=(keys.arrowdown||keys.s?1:0)-(keys.arrowup||keys.w?1:0);if(kx||ky)want=Math.atan2(ky,kx)}
+  if(want!==null){let d=want-cat.a;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;const maxT=3.4*dt*(1+.05*speedUps);cat.a+=Math.max(-maxT,Math.min(maxT,d))}
+  else cat.a+=Math.sin(t*.0009)*.25*dt;
+  if(cat.frozenT>0)cat.frozenT-=dt;
+  const sp=cat.speed*(cat.k>1.2?1.15:1)*(cat.frozenT>0?.5:1)*(1+.12*speedUps); // each speed-up is 12% faster (a guess)
+  cat.x+=Math.cos(cat.a)*sp*dt;cat.y+=Math.sin(cat.a)*sp*dt;cat.walk+=dt*9;
+  const m=26*cat.k,top=70;
+  if(cat.x<m){cat.x=m;cat.a=Math.PI-cat.a}if(cat.x>W-m){cat.x=W-m;cat.a=Math.PI-cat.a}
+  if(cat.y<top+m*.5){cat.y=top+m*.5;cat.a=-cat.a}if(cat.y>H-m){cat.y=H-m;cat.a=-cat.a}
+  const c=Math.cos(cat.a);if(Math.abs(c)>.25)cat.face=c<0?-1:1;
+  const h=cat.trail[0];if(Math.hypot(cat.x-h.x,cat.y-h.y)>2){cat.trail.unshift({x:cat.x,y:cat.y});if(cat.trail.length>2400)cat.trail.length=2400}
+  if(cat.giantT>0){cat.giantT-=dt;if(cat.giantT<=0){cat.kTarget=1;tune(false)}}
+  cat.k+=(cat.kTarget-cat.k)*Math.min(1,dt*4);
+  if(safeT>0)safeT-=dt;
+  items.forEach(it=>{if(it.kind==="dragon"){it.x+=it.vx*dt;it.y+=it.vy*dt;if(it.x<40||it.x>W-40)it.vx*=-1;if(it.y<110||it.y>H-40)it.vy*=-1}});
+  // mouth: opens wider as food gets close, snaps shut on the bite, then chews
+  let near=1e9;items.forEach(it=>{near=Math.min(near,Math.hypot(it.x-cat.x,it.y-cat.y)-it.r)});
+  if(dragon.alive&&catCanEat())near=Math.min(near,Math.hypot(dragon.x-cat.x,dragon.y-cat.y)-20);
+  let want_m=Math.max(0,Math.min(1,(110*cat.k-near)/(80*cat.k)));
+  if(cat.chompT>0){cat.chompT-=dt;want_m=0}
+  else if(cat.chewT>0){cat.chewT-=dt;want_m=Math.max(want_m,.35*Math.abs(Math.sin(cat.chewT*22)))}
+  cat.mouth+=(want_m-cat.mouth)*Math.min(1,dt*(want_m<cat.mouth?30:12));
+  const CB=catBite();for(let i=items.length-1;i>=0;i--){const it=items[i];if(Math.hypot(it.x-CB.x,it.y-CB.y)<it.r+CB.r){items.splice(i,1);bite(it);
+    if(it.kind==="glow"){cat.kTarget=VW<600?1.9:2.4;cat.giantT=7;tune(true);popS("you become GiGantic!",170,Math.min(46,VW/9),DARK,1.8)}
+    else{score++;eatenSinceGlow++;document.getElementById("score").textContent=score;cat.len=Math.min(maxLen(),cat.len+22);crunch();pop(["Rrunch!","om nom nom","CRUNCH!"][score%3],it.x,it.y-24)}}}
+  fillBoard();
+  updateDragon(dt);updateMinis(dt);updateHud();
+  sinceGlow+=dt;if(!items.some(i=>i.kind==="glow")&&cat.giantT<=0&&(eatenSinceGlow>=6||sinceGlow>22)){spawn("glow");sinceGlow=0;eatenSinceGlow=0}
+  crumbs.forEach(c=>{c.t+=dt;c.x+=c.vx*dt;c.y+=c.vy*dt;c.vy+=260*dt});for(let i=crumbs.length-1;i>=0;i--)if(crumbs[i].t>.5)crumbs.splice(i,1);
+  pops.forEach(p=>{p.t+=dt;p.y-=dt*40});for(let i=pops.length-1;i>=0;i--)if(pops[i].t>pops[i].life)pops.splice(i,1);
+}
+
+// ---------- draw ----------
+// "on a bord" (page 3): a hand-drawn wobbly box on plain paper
+const edge=[];{const n=90;for(let i=0;i<=n;i++)edge.push(hash(i*3.1)-.5)}
+function drawBoard(){ctx.fillStyle=PAPER;ctx.fillRect(0,0,W,H);
+  ctx.save();ctx.strokeStyle="rgba(226,80,107,.09)";ctx.lineWidth=1.5;ctx.beginPath();for(let x=100;x<W;x+=100){ctx.moveTo(x,62);ctx.lineTo(x,H-10)}for(let y=162;y<H;y+=100){ctx.moveTo(12,y);ctx.lineTo(W-12,y)}ctx.stroke();ctx.restore();
+  const x0=12,y0=62,x1=W-12,y1=H-10;
+  sketch(SOFT,2.2,()=>{const side=(ax,ay,bx,by,o)=>{for(let i=0;i<=20;i++){const f=i/20,j=edge[(o+i)%edge.length]*6;const x=ax+(bx-ax)*f+(ay===by?0:j),y=ay+(by-ay)*f+(ay===by?j:0);i?ctx.lineTo(x,y):ctx.moveTo(x,y)}};
+    side(x0,y0+4,x1,y0-3,0);side(x1-2,y0-6,x1+3,y1,21);side(x1,y1+2,x0+4,y1-3,42);side(x0,y1+5,x0-2,y0-4,63)})}
+function frame(t){
+  const cw=innerWidth,ch=innerHeight;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle=PAPER;ctx.fillRect(0,0,cw,ch);
+  ctx.translate((cw-VW*scale)/2,(ch-VH*scale)/2);ctx.scale(scale,scale);if(running)camFollow();ctx.translate(-camX,-camY);
+  drawBoard();drawLava(t);items.forEach(it=>{if(it.x>camX-60&&it.x<camX+VW+60&&it.y>camY-60&&it.y<camY+VH+60)drawItem(it,t)});drawMinis(t);drawDragon(t);if(!(safeT>0&&Math.floor(t/120)%2))drawCat(t);
+  crumbs.forEach(c=>{ctx.fillStyle=c.c||SOFT;ctx.globalAlpha=1-c.t/.5;ctx.beginPath();ctx.arc(c.x,c.y,c.r,0,7);ctx.fill()});ctx.globalAlpha=1;
+  if(cat.frozenT>0){ctx.save();ctx.globalAlpha=Math.min(1,cat.frozenT*2)*.8;sketch("#2b8fb3",2.2,()=>{const r=30*cat.k;ctx.arc(cat.x,cat.y,r,0,7);for(let k=0;k<6;k++){const a=k*Math.PI/3+.3,x=cat.x+Math.cos(a)*r,y=cat.y+Math.sin(a)*r;ctx.moveTo(x-5,y);ctx.lineTo(x+5,y);ctx.moveTo(x,y-5);ctx.lineTo(x,y+5)}});ctx.restore()}
+  if(dragon.alive&&DK.trick==="dark"){const g=ctx.createRadialGradient(cat.x,cat.y,80*cat.k,cat.x,cat.y,280*cat.k);g.addColorStop(0,"rgba(18,10,32,0)");g.addColorStop(1,"rgba(18,10,32,.84)");ctx.fillStyle=g;ctx.fillRect(camX-20,camY+64,VW+40,VH);
+    const S=samplesOf(dragon);if(S.length){const w=dW(),sc=w/22*1.45*1.2,f=dragon.face||-1,ex=S[0].x+f*sc*18,ey=S[0].y-8*sc;ctx.save();ctx.shadowColor="#ff3030";ctx.shadowBlur=14;ctx.fillStyle="#ff5050";ctx.beginPath();ctx.ellipse(ex,ey,5*sc/1.5,3*sc/1.5,0,0,7);ctx.fill();ctx.restore()}}
+  pops.forEach(p=>{const a=1-p.t/p.life;ctx.globalAlpha=Math.max(0,a);ctx.fillStyle=p.color;ctx.font=p.size+"px 'Gochi Hand', 'Comic Sans MS', cursive";ctx.textAlign="center";ctx.fillText(p.text,p.screen?camX+VW/2:p.x,p.screen?camY+p.y:p.y);ctx.globalAlpha=1});
+  if(cat.giantT>0){ctx.fillStyle=DARK;ctx.font="28px 'Gochi Hand', cursive";ctx.textAlign="center";ctx.fillText("GIGANTIC "+Math.ceil(cat.giantT),camX+VW/2,camY+100)}
+  drawBossPointer();
+}
+let last=performance.now();
+function loop(t){const dt=Math.min(.05,(t-last)/1000);last=t;if(running&&!document.hidden)update(dt,t);frame(t);requestAnimationFrame(loop)}
+fillBoard();requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
