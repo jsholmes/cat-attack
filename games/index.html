@@ -33,7 +33,7 @@ h2{font-weight:800;font-size:clamp(28px,5vw,40px);margin:0 4px 14px;line-height:
 .kit h2{color:var(--kit)} .addie h2{color:var(--addie)}
 .badge{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:28px;flex:none}
 .kit .badge{background:var(--kit)} .addie .badge{background:var(--addie)}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}
 a.game{display:block;text-decoration:none;color:inherit;background:var(--card);border-radius:22px;overflow:hidden;
   border:3px solid var(--line);transition:transform .12s ease,box-shadow .12s ease;box-shadow:0 4px 0 var(--line)}
 a.game:hover{transform:translateY(-3px);box-shadow:0 8px 0 var(--line)}
@@ -42,10 +42,11 @@ a.game:active{transform:translateY(2px);box-shadow:0 1px 0 var(--line)}
 .addie a.game:focus-visible{outline:4px solid var(--addie);outline-offset:3px}
 a.game img{display:block;width:100%;aspect-ratio:1;object-fit:cover;background:#eee}
 .label{padding:10px 14px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px}
-.name{font-weight:800;font-size:clamp(19px,3.2vw,26px);line-height:1.1}
+.name{font-weight:800;font-size:24px;line-height:1.1}
 .play{flex:none;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:#fff}
 .kit .play{background:var(--kit)} .addie .play{background:var(--addie)}
 .play svg{width:20px;height:20px;margin-left:3px}
+@media (max-width:560px){.grid{grid-template-columns:repeat(2,1fr)}.name{font-size:19px}}
 .empty{font-size:22px;color:var(--soft);margin:4px 6px;font-weight:600}
 </style>
 </head>
@@ -59,10 +60,11 @@ a.game img{display:block;width:100%;aspect-ratio:1;object-fit:cover;background:#
 // To add a game: add a line to the right list. "url" is where the game lives, "img" is a square picture.
 const GAMES = {
   kit: [
-    { name: "Cat Attack",  url: "../",       img: "img/cat-attack.png" },
-    { name: "Dino Attack", url: "../dinos/", img: "img/dino-attack.png" },
+    { name: "Cat Attack",  url: "https://jsholmes.github.io/cat-attack/",       img: "img/cat-attack.png" },
+    { name: "Dino Attack", url: "https://jsholmes.github.io/cat-attack/dinos/", img: "img/dino-attack.png" },
   ],
   addie: [
+    { name: "Best Tree Friends", url: "https://jsholmes.github.io/best-tree-friends/", img: "img/best-tree-friends.png" },
   ],
 };
 const PLAY = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 2.5v15l13-7.5z" fill="currentColor"/></svg>';
