@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<!-- Dino Attack v1: one-player. The world, the dinos and the player are plain data in `world`, so a shared multiplayer world can be added later. -->
+<!-- Dino Attack v2: one-player; Space is the claw (no on-screen button). The world, the dinos and the player are plain data in `world`, so a shared multiplayer world can be added later. -->
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -91,7 +91,7 @@ body{font-family:var(--body);touch-action:none;user-select:none;-webkit-user-sel
   <div class="gen" id="hGen" hidden></div>
 </div>
 <button class="menu" id="menuBtn" aria-label="Pause" hidden>&#10074;&#10074;</button>
-<button class="claw" id="claw" aria-label="Claw and bite" hidden>
+<button class="claw" id="claw" aria-label="Claw and bite" hidden style="display:none">
   <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="6"><path d="M14 10 C 24 26, 26 40, 20 56"/><path d="M30 6 C 40 24, 42 40, 36 58"/><path d="M46 10 C 54 26, 56 40, 50 54"/></svg>
   <small>CLAW</small>
 </button>
@@ -101,7 +101,7 @@ body{font-family:var(--body);touch-action:none;user-select:none;-webkit-user-sel
   <h1>DINO <em>ATTACK</em></h1>
   <h2 id="pickTitle">Pick your dinosaur</h2>
   <div class="cards" id="cards"></div>
-  <p class="help">Drag your finger to walk. Press the red claw button to bite and claw. Eat 3 that are your size to get a star and grow. Grow to size 10, then follow the arrow to the blue egg!</p>
+  <p class="help">Drag your finger to walk. Press the Space bar to bite and claw (on an iPad with no keyboard, tap with a second finger). Eat 3 that are your size to get a star and grow. Grow to size 10, then follow the arrow to the blue egg!</p>
 </div>
 
 <div class="overlay" id="dead" hidden>
@@ -628,12 +628,16 @@ function aiStep(e,dt){
 /* ========================= input ========================= */
 const fingers=new Map();let keys={};
 function scr(e){const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
-cv.addEventListener("pointerdown",e=>{e.preventDefault();try{cv.setPointerCapture(e.pointerId)}catch(_){}fingers.delete(e.pointerId);fingers.set(e.pointerId,scr(e));audio()});
+const clawFingers=new Set();
+cv.addEventListener("pointerdown",e=>{e.preventDefault();try{cv.setPointerCapture(e.pointerId)}catch(_){}audio();
+  // a second finger tapping while one is walking is the claw (for iPads with no keyboard)
+  if(e.pointerType==="touch"&&fingers.size>0){clawFingers.add(e.pointerId);attack();return}
+  fingers.delete(e.pointerId);fingers.set(e.pointerId,scr(e))});
 cv.addEventListener("pointermove",e=>{if(fingers.has(e.pointerId))fingers.set(e.pointerId,scr(e))});
-const lift=e=>{fingers.delete(e.pointerId)};
+const lift=e=>{fingers.delete(e.pointerId);clawFingers.delete(e.pointerId)};
 cv.addEventListener("pointerup",lift);cv.addEventListener("pointercancel",lift);cv.addEventListener("lostpointercapture",lift);
 addEventListener("blur",()=>{fingers.clear();keys={}});
-addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=true;if(e.key===" "){e.preventDefault();attack()}if(e.key==="Escape")togglePause()});
+addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=true;if(e.key===" "||e.code==="Space"){e.preventDefault();if(!e.repeat)attack()}if(e.key==="Escape")togglePause()});
 addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=false});
 const claw=$("claw");
 claw.addEventListener("pointerdown",e=>{e.preventDefault();e.stopPropagation();audio();claw.classList.add("hit");attack()});
@@ -642,7 +646,7 @@ document.addEventListener("gesturestart",e=>e.preventDefault());
 document.addEventListener("dblclick",e=>e.preventDefault());
 
 /* ========================= UI ========================= */
-function show(id){for(const o of["pick","dead","paused"])$(o).hidden=o!==id;const playing=id===null;$("hud").hidden=!playing&&id!=="paused";$("menuBtn").hidden=!playing;$("claw").hidden=!playing}
+function show(id){for(const o of["pick","dead","paused"])$(o).hidden=o!==id;const playing=id===null;$("hud").hidden=!playing&&id!=="paused";$("menuBtn").hidden=!playing;$("claw").hidden=true}
 let bannerTimer=0;
 function banner(big,small,secs){const b=$("banner");b.innerHTML="";b.append(big);if(small){const s=document.createElement("small");s.textContent=small;b.append(s)}b.classList.add("show");clearTimeout(bannerTimer);bannerTimer=setTimeout(()=>b.classList.remove("show"),secs*1000)}
 const LEAF='<svg viewBox="0 0 16 16"><path d="M3 13C3 6 8 3 14 2c-1 6-4 11-11 11z" fill="#8fd062"/></svg>';
@@ -664,7 +668,7 @@ function start(sp){
   me=newPlayer(sp);world.players=[me];
   resize();cam.x=me.x;cam.y=me.y;cam.z=zoomFor(1);
   populate(true);game.state="play";show(null);hud();
-  banner(SP[sp].name.toUpperCase(),SP[sp].meat?"Meat eater: claw dinos your size and eat them":"Plant eater: eat plants your size, claw dinos that bother you",3);
+  banner(SP[sp].name.toUpperCase(),SP[sp].meat?"Meat eater: press Space to claw dinos your size and eat them":"Plant eater: eat plants your size, press Space to claw dinos",3);
 }
 function togglePause(){if(game.state==="play"){game.state="paused";fingers.clear();show("paused")}else if(game.state==="paused"){game.state="play";show(null)}}
 $("menuBtn").onclick=togglePause;$("resumeBtn").onclick=togglePause;$("quitBtn").onclick=()=>openPick(false);
