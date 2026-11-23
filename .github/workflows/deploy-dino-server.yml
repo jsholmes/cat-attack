@@ -9,11 +9,19 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: cloudflare/wrangler-action@v3
+      # skip quietly until the Cloudflare secrets are added (the server was first deployed by hand with wrangler)
+      - if: env.HAS_TOKEN != 'true'
+        run: echo "No CLOUDFLARE_API_TOKEN secret yet, so skipping the deploy."
+      - if: env.HAS_TOKEN == 'true'
+        uses: actions/checkout@v4
+      - if: env.HAS_TOKEN == 'true'
+        uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: dino-server
+          wranglerVersion: "4.166.0"
           command: deploy
