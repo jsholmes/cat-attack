@@ -9,7 +9,7 @@ const net=(()=>{
   const url=Q.get("server")||(NET_SERVER.includes("REPLACE_ME")?"":NET_SERVER);
   const room=(Q.get("room")||"world").toLowerCase().replace(/[^a-z0-9-]/g,"").slice(0,24)||"world";
   const off=Q.has("solo")||!url;
-  let ws=null,pid=0,ready=false,tries=0,pT=0,eT=0,uiT=0,hadPid=false;
+  let ws=null,pid=0,ready=false,tries=0,pT=0,eT=0,uiT=0,hadPid=false,sentT=0,away=false,bumped=false;
   const players=new Map();   // pid -> {pid,name,s,obj,kids:[],deadLife}
   const ents=new Map();      // id -> world object we got from the server
   const sent=new Set();      // ids of my own wild things the server knows
@@ -18,19 +18,28 @@ const net=(()=>{
   const ST=["wander","hunt","wind","rest","flee","dead"];
   const r0=v=>Math.round(v),r2=v=>Math.round(v*100)/100;
   const myName=()=>{try{return localStorage.getItem("dinoName")||""}catch(e){return""}};
+  // one id per device (shared by its tabs), so the server can tell an old connection of ours from a real second player
+  const dev=(()=>{let d="";try{d=localStorage.getItem("dinoDev")||""}catch(e){}if(!d){d=Math.random().toString(36).slice(2,12);try{localStorage.setItem("dinoDev",d)}catch(e){}}return d})();
+  const hi=()=>send({t:"hi",name:myName()||"Dino",dev});
 
   /* ---------- connection ---------- */
   function connect(){
-    if(off||ws)return;
+    if(off||ws||away||bumped)return;
     try{ws=new WebSocket(url.replace(/\/$/,"")+"/room/"+room)}catch(e){ws=null;return later()}
-    ws.onopen=()=>{tries=0;ws.send(JSON.stringify({t:"hi",name:myName()||"Dino"}))};
+    ws.onopen=()=>{tries=0;hi()};
     ws.onmessage=ev=>{let m;try{m=JSON.parse(ev.data)}catch(e){return}onMsg(m)};
     ws.onclose=()=>{ws=null;ready=false;later()};
     ws.onerror=()=>{try{ws&&ws.close()}catch(e){}};
   }
-  function later(){if(off)return;tries++;if(pickLine&&tries>2)pickLine.textContent="Can't reach the world right now. You can still play alone.";setTimeout(connect,Math.min(10000,800*tries))}
-  function send(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o))}
-  document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!ws)connect()});
+  function later(){if(off||away||bumped)return;tries++;if(pickLine&&tries>2)pickLine.textContent="Can't reach the world right now. You can still play alone.";setTimeout(connect,Math.min(10000,800*tries))}
+  function send(o){if(ws&&ws.readyState===1){ws.send(JSON.stringify(o));sentT=performance.now()}}
+  // leaving the page (other tab, other app, phone locked) hangs up, so nobody is left seeing a frozen copy of you;
+  // coming back connects again
+  function hangUp(){away=true;ready=false;const w=ws;ws=null;if(w){w.onclose=null;try{w.close()}catch(e){}}
+    for(const q of [...players.keys()])gonePlayer(q);lb={n:0,top:[]}}
+  document.addEventListener("visibilitychange",()=>{if(document.hidden)hangUp();else{away=false;bumped=false;connect()}});
+  addEventListener("pagehide",hangUp);
+  addEventListener("pageshow",()=>{if(!document.hidden){away=false;bumped=false;connect()}});
 
   /* ---------- turning my things into messages ---------- */
   function serD(e){return[e.id,"d",r0(e.x),r0(e.y),e.sp,e.size,r2(e.yaw),r0(e.vx),r0(e.vy),r2(e.mv),r2(e.jaw),ST.indexOf(e.state),r2(e.dying),r2(e.hurt),e.dmg,e.meal?1:0,
@@ -142,6 +151,7 @@ const net=(()=>{
       return;
     }
     if(m.t==="lb"){lb=m;return}
+    if(m.t==="bye"){bumped=true;hangUp();away=false;if(pickLine)pickLine.textContent="You're playing in another tab or window.";return} // our newer copy took over
     if(m.t==="nm"||m.t==="you")return gotName(m);
     if(m.t==="h")return gotHit(m);
     if(m.t==="k")return gotKill(m);
@@ -190,7 +200,7 @@ const net=(()=>{
   function reset(){ // a new game started: let go of everything
     if(inp&&cleanName(inp.value)&&cleanName(inp.value)!==myName()){try{localStorage.setItem("dinoName",cleanName(inp.value))}catch(e){}}
     if(inp)inp.blur();
-    send({t:"hi",name:myName()||"Dino"});send({t:"reset"});
+    hi();send({t:"reset"});
     ents.clear();sent.clear();for(const P of players.values()){P.obj=null}
   }
 
@@ -215,6 +225,7 @@ const net=(()=>{
     if(now-pT>50){pT=now;sendMe()}
     if(now-eT>100&&me){eT=now;sendMine()}
     if(now-uiT>500){uiT=now;ui()}
+    if(now-sentT>3000)send({t:"ping"}); // still here (the server lets go of anyone silent for a while)
   }
 
   /* ---------- drawing: other players' babies, names, who's online ---------- */
@@ -235,9 +246,15 @@ const net=(()=>{
     if(!panel){
       panel=document.createElement("div");panel.id="netPanel";
       panel.style.cssText="position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:calc(max(12px,env(safe-area-inset-right,0px)) + 186px);background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:6px 12px 7px;pointer-events:none;font-size:14px;line-height:1.25;color:var(--dim);font-weight:600;min-width:120px";
-      document.body.append(panel);
+      panel._css=panel.style.cssText;document.body.append(panel);
     }
     panel.hidden=$("hud").hidden;
+    if(!panel.hidden){ // never cover the dino name and stars: if it would, sit in the bottom-left corner instead
+      if(panel._iw!==innerWidth){panel._iw=innerWidth;panel.style.cssText=panel._css;panel._low=false} // turned the phone: try the top again
+      if(!panel._low){const a=panel.getBoundingClientRect(),b=$("hud").getBoundingClientRect();
+        if(a.left<b.right&&b.left<a.right&&a.top<b.bottom&&b.top<a.bottom){panel._low=true;
+          Object.assign(panel.style,{top:"auto",right:"auto",left:"max(12px,env(safe-area-inset-left,0px))",bottom:"max(12px,env(safe-area-inset-bottom,0px))"})}}
+    }
     const rows=lb.top.map(([n,s,sp])=>`<div style="display:flex;justify-content:space-between;gap:10px;color:${n===(myNow||myName()||"Dino")&&me&&s===me.size?"var(--amber)":"var(--ink)"}"><span>${esc(n)}</span><span>${s}</span></div>`).join("");
     panel.innerHTML=`<div style="color:#9fe6ff">${lb.n} playing</div>${rows}`;
     if(pickLine)pickLine.textContent=`Online: ${lb.n} ${lb.n===1?"player":"players"} in the world`;
@@ -271,7 +288,7 @@ const net=(()=>{
     try{localStorage.setItem("dinoName",n)}catch(e){}
     inp.blur();
     // show it as chosen right away; if the server says someone else has it, its answer puts the right name back
-    myNow=n;nameState("mine",`✓ You are ${n}! Tap the name to change it.`);if(ready)send({t:"hi",name:n});
+    myNow=n;nameState("mine",`✓ You are ${n}! Tap the name to change it.`);if(ready)hi();
   }
   function gotName(m){ // the server's answer to a check ("nm") or to taking a name ("you")
     if(m.t==="you"){myNow=m.name;
