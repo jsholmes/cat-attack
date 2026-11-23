@@ -14,7 +14,7 @@ for o,n in [('<title>Dino Attack</title>','<title>Big Chomp</title>'),('content=
 for o,n in [('<button class="menu" id="menuBtn" aria-label="Pause" hidden>&#10074;&#10074;</button>','<button class="menu" id="menuBtn" aria-label="Pause" hidden><span>&#10074;&#10074;</span> Pause</button>'),
             ('  <h1>PAUSED</h1>\n','  <h1>PAUSED</h1>\n  <h2 id="pauseNote">Everything stops until you tap Keep playing.</h2>\n')]:
     assert o in head,o;head=head.replace(o,n)
-head=head.replace('</style>','.menu{width:auto;height:52px;padding:0 16px;display:flex;align-items:center;gap:8px;font-family:var(--body);font-weight:800;font-size:18px;background:#3a3226;border:2px solid var(--amber);box-shadow:0 4px 0 #17130d}.menu span{font-size:16px;letter-spacing:-2px}\n</style>',1)
+head=head.replace('</style>','.menu{width:auto;height:52px;padding:0 16px;display:flex;align-items:center;gap:8px;font-family:var(--body);font-weight:800;font-size:18px;background:#3a3226;border:2px solid var(--amber);box-shadow:0 4px 0 #17130d}.menu span{font-size:16px;letter-spacing:-2px}\n.menu.bookG{right:calc(max(12px,env(safe-area-inset-right,0px)) + 124px);width:56px;padding:0;justify-content:center;font-size:24px}\n#book{z-index:40}\n@media (max-width:760px){#hSize{display:block}.stars{font-size:15px;letter-spacing:0}#netPanel{top:auto!important;right:auto!important;left:max(12px,env(safe-area-inset-left,0px))!important;bottom:max(12px,env(safe-area-inset-bottom,0px))!important}.hud{max-width:calc(100vw - 210px)}}\n</style>',1)
 src=lambda n:open(os.path.join(here,'src',n)).read()
 lines=orig
 def block(a,b): return '\n'.join(lines[a-1:b])

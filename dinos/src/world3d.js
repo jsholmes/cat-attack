@@ -176,7 +176,7 @@ function makeInst(sp){
   const bn={};for(const b of T.bones)bn[b.name]=bones[T.B[b.name]];
   const rest={};for(const k in bn)rest[k]=bn[k].position.clone();
   return{sp,T,g,inner,bn,rest,mats,meshes,disk,owner:null,fade:1,op:1}}
-function getInst(sp,owner){const p=pools[sp]||(pools[sp]=[]);const I=p.pop()||makeInst(sp);I.owner=owner;I.stamp=stamp;I.fade=0;scene.add(I.g);liveInst.add(I);I.g.visible=true;return I}
+function getInst(sp,owner){const p=pools[sp]||(pools[sp]=[]);const I=p.pop()||makeInst(sp);I.inner.rotation.set(0,0,0);I.inner.position.set(0,0,0); /* a reused model may have been lying on its side (a dino that died) */I.owner=owner;I.stamp=stamp;I.fade=0;scene.add(I.g);liveInst.add(I);I.g.visible=true;return I}
 function relInst(I){scene.remove(I.g);liveInst.delete(I);if(I.owner&&I.owner._i===I)I.owner._i=null;I.owner=null;(pools[I.sp]||(pools[I.sp]=[])).push(I)}
 function setOpacity(I,a){if(Math.abs(I.op-a)<.01)return;const tr=a<.999;for(const k in I.mats){const m=I.mats[k];if(m.transparent!==tr){m.transparent=tr;m.needsUpdate=true}m.opacity=a;m.depthWrite=!tr||k!=="acc"}I.op=a}
 const angTo=(a,b,k)=>{let d=((b-a+Math.PI*3)%TAU)-Math.PI;return a+d*clamp(k,0,1)};

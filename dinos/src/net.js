@@ -234,7 +234,7 @@ const net=(()=>{
   function ui(){
     if(!panel){
       panel=document.createElement("div");panel.id="netPanel";
-      panel.style.cssText="position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:calc(max(12px,env(safe-area-inset-right,0px)) + 124px);background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:6px 12px 7px;pointer-events:none;font-size:14px;line-height:1.25;color:var(--dim);font-weight:600;min-width:120px";
+      panel.style.cssText="position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:calc(max(12px,env(safe-area-inset-right,0px)) + 186px);background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:6px 12px 7px;pointer-events:none;font-size:14px;line-height:1.25;color:var(--dim);font-weight:600;min-width:120px";
       document.body.append(panel);
     }
     panel.hidden=$("hud").hidden;
