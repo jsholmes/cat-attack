@@ -630,7 +630,6 @@ function aiStep(e,dt){
 /* ========================= input ========================= */
 const fingers=new Map();let keys={};
 function scr(e){const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
-const clawFingers=new Set();
 // what did a tap land on? a dinosaur (or, for plant eaters, a plant)
 function hitTest(pt){
   if(!me||me.dead)return null;let best=null,bd=1e9;
@@ -642,13 +641,18 @@ function hitTest(pt){
   return best;
 }
 // tap a dinosaur: walk over to it and claw/bite it once it is close enough
+// A quick tap that doesn't move counts as a tap; anything that drags is walking.
+const taps=new Map();
+function doTap(h){if(game.state!=="play"||!me||me.dead)return;me.goal={...h,t:6};fx.push({k:"tap",o:h.o,t:.5});
+  if(h.kind==="dino"&&dist(h.o,me)<reachMe(h.o)){attack(h.o);me.goal=null}}
 cv.addEventListener("pointerdown",e=>{e.preventDefault();try{cv.setPointerCapture(e.pointerId)}catch(_){}audio();
-  if(game.state==="play"){const h=hitTest(scr(e));if(h){clawFingers.add(e.pointerId);me.goal={...h,t:6};fx.push({k:"tap",o:h.o,t:.5});
-    if(h.kind==="dino"&&dist(h.o,me)<reachMe(h.o)){attack(h.o);me.goal=null}return}}
-  fingers.delete(e.pointerId);fingers.set(e.pointerId,scr(e))});
-cv.addEventListener("pointermove",e=>{if(fingers.has(e.pointerId))fingers.set(e.pointerId,scr(e))});
-const lift=e=>{fingers.delete(e.pointerId);clawFingers.delete(e.pointerId)};
-cv.addEventListener("pointerup",lift);cv.addEventListener("pointercancel",lift);cv.addEventListener("lostpointercapture",lift);
+  const pt=scr(e);fingers.delete(e.pointerId);fingers.set(e.pointerId,pt);
+  if(game.state==="play"){const h=hitTest(pt);if(h)taps.set(e.pointerId,{x:pt.x,y:pt.y,t:performance.now(),h})}});
+cv.addEventListener("pointermove",e=>{if(!fingers.has(e.pointerId))return;const pt=scr(e);fingers.set(e.pointerId,pt);
+  const tp=taps.get(e.pointerId);if(tp&&Math.hypot(pt.x-tp.x,pt.y-tp.y)>16)taps.delete(e.pointerId)});
+cv.addEventListener("pointerup",e=>{const tp=taps.get(e.pointerId);taps.delete(e.pointerId);fingers.delete(e.pointerId);if(tp&&performance.now()-tp.t<450)doTap(tp.h)});
+const lift=e=>{fingers.delete(e.pointerId);taps.delete(e.pointerId)};
+cv.addEventListener("pointercancel",lift);cv.addEventListener("lostpointercapture",lift);
 addEventListener("blur",()=>{fingers.clear();keys={}});
 addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=true;if(e.key===" "||e.code==="Space"){e.preventDefault();if(!e.repeat)attack()}if(e.key==="Escape")togglePause()});
 addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=false});
