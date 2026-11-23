@@ -292,6 +292,6 @@ const net=(()=>{
   if(!off)connect();
   // seconds on a clock every player shares (for day and night)
   const clock=()=>ready?(Date.now()+clockOff)/1000:game.t;
-  return{tick,render,overlay,attack,claim,keep,reset,clock,get on(){return ready},get pid(){return pid},players,ents,get lb(){return lb}};
+  return{tick,render,overlay,attack,claim,keep,reset,clock,sendNow:sendMe,get on(){return ready},get pid(){return pid},players,ents,get lb(){return lb}};
 })();
 window.DINO&&(window.DINO.net=net);
