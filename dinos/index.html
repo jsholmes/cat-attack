@@ -869,7 +869,8 @@ function collide(o,L){
   if(o.sp&&SP[o.sp].fly)return; // flyers go over rocks and trees
   const br=L*.32,lod=lodFor(me.size),minS=lod?LODS[lod]*.022:0,ci=Math.floor(o.x/CH),cj=Math.floor(o.y/CH);
   for(let j=cj-1;j<=cj+1;j++)for(let i=ci-1;i<=ci+1;i++)for(const ob of obstacles512(i,j)){
-    if(ob.type==="rock"&&(ob.s<minS||ob.r<L*.12))continue;
+    // big dinosaurs step right over rocks and boulders that are small next to them (lower than about knee height)
+    if(ob.type==="rock"&&ob.s<minS||ob.type!=="tree"&&ob.r<L*.14)continue;
     const dx=wd(o.x-ob.x),dy=wd(o.y-ob.y),m=ob.r+br;if(Math.abs(dx)>m||Math.abs(dy)>m)continue;const d=Math.hypot(dx,dy);if(d>=m)continue;
     const nx=d>.001?dx/d:1,ny=d>.001?dy/d:0;o.x=wrap(o.x+nx*(m-d));o.y=wrap(o.y+ny*(m-d));
     // stop pushing into the rock, keep sliding along it
