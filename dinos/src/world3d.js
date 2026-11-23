@@ -167,7 +167,7 @@ function pose(I,a,t){
   const B=I.bn,R=I.rest,T=I.T,ph=a.ph,mv=a.mv;
   B.body.position.y=R.body.y+(T.kind==="biped"?Math.abs(Math.sin(ph))*1.6:Math.abs(Math.sin(ph))*.8)*mv+Math.sin(t*1.7)*.35;
   B.body.rotation.z=Math.sin(ph*2)*.015*mv;B.body.rotation.x=Math.sin(ph)*.03*mv;
-  for(let k=0;k<3;k++){const tb=B["tail"+k];tb.rotation.y=Math.sin(t*1.5+ph*.5-k*.8)*(.06+.07*mv)*(1+k*.4)+(I.sp==="anky"?Math.sin(a.atk*Math.PI)*.5:0);tb.rotation.z=Math.sin(ph*2-k)*.03*mv-.015}
+  for(let k=0;k<3;k++){const tb=B["tail"+k];tb.rotation.y=Math.sin(t*1.5+ph*.5-k*.8)*(.06+.07*mv)*(1+k*.4)+(MOVES[I.sp]&&MOVES[I.sp].tail?Math.sin(a.atk*Math.PI)*(.5+k*.3):0);tb.rotation.z=Math.sin(ph*2-k)*.03*mv-.015}
   const look=a.angry?-.1:0;
   B.neck0.rotation.z=Math.sin(ph*2)*.03*mv+Math.sin(t*1.1)*.02+look*.6-a.atk*.22;B.neck1.rotation.z=look*.4-a.atk*.1;
   B.neck0.rotation.y=Math.sin(t*.6+I.g.id)*.06*(1-mv);
