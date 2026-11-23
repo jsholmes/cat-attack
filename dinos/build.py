@@ -7,6 +7,9 @@ head=re.sub(r'<!-- Dino Attack v6.*?-->','<!-- Dino Attack 3D: same game as the 
 head=head.replace('#cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}','#gl,#cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}\n#gl{background:#8e9688}')
 head=head.replace('<canvas id="cv" aria-label="Dino Attack game"></canvas>','<canvas id="gl"></canvas>\n<canvas id="cv" aria-label="Dino Attack game"></canvas>')
 head=re.sub(r'<button class="claw".*?</button>\n','',head,flags=re.S)
+# the 3D game is called Big Chomp (2026-11-23); the URL stays /dinos/
+for o,n in [('<title>Dino Attack</title>','<title>Big Chomp</title>'),('content="Dino Attack"','content="Big Chomp"'),('aria-label="Dino Attack game"','aria-label="Big Chomp game"'),('<h1>DINO <em>ATTACK</em></h1>','<h1>BIG <em>CHOMP</em></h1>')]:
+    assert o in head,o;head=head.replace(o,n)
 src=lambda n:open(os.path.join(here,'src',n)).read()
 lines=orig
 def block(a,b): return '\n'.join(lines[a-1:b])
