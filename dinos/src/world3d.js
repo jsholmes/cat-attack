@@ -190,6 +190,8 @@ function pose(I,a,t){
   B.neck0.rotation.z=Math.sin(ph*2)*.03*mv+Math.sin(t*1.1)*.02+look*.6-a.atk*.22;B.neck1.rotation.z=look*.4-a.atk*.1;
   B.neck0.rotation.y=Math.sin(t*.6+I.g.id)*.06*(1-mv);
   B.head.rotation.z=look*.5+(a.angry?Math.sin(t*9)*.015:0);
+  if(a.drink){const d=a.drink*a.drink*(3-2*a.drink);B.neck0.rotation.z-=d*.62;B.neck1.rotation.z-=d*.42;B.head.rotation.z-=d*.38;
+    if(!T.fly)B.body.rotation.z-=d*(T.kind==="biped"?.16:.08);B.jaw.rotation.z=-(Math.sin(t*14)*.5+.5)*d*T.open*.35}
   B.jaw.rotation.z=-a.jaw*T.open;
   if(T.fly){ // flapping wings, legs tucked back
     const fs=a.mv>.1?9:6,fl=Math.sin(t*fs+I.g.id);
