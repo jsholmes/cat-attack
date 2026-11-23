@@ -363,7 +363,10 @@ cv.addEventListener("pointermove",e=>{if(!fingers.has(e.pointerId))return;const 
 cv.addEventListener("pointerup",e=>{const tp=taps.get(e.pointerId);taps.delete(e.pointerId);fingers.delete(e.pointerId);if(tp&&performance.now()-tp.t<450)doTap(tp.h)});
 const lift=e=>{fingers.delete(e.pointerId);taps.delete(e.pointerId)};
 cv.addEventListener("pointercancel",lift);cv.addEventListener("lostpointercapture",lift);
-addEventListener("blur",()=>{fingers.clear();keys={}});
+// leaving the game (switching apps, locking the iPad, another tab or window) pauses it, and in the shared world
+// tells the others right away that you're away, before the browser goes to sleep
+function autoPause(){fingers.clear();keys={};if(game.state==="play"){togglePause();try{net.sendNow()}catch(e){}}}
+addEventListener("blur",autoPause);addEventListener("pagehide",autoPause);document.addEventListener("visibilitychange",()=>{if(document.hidden)autoPause()});
 addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=true;if(e.key===" "||e.code==="Space"){e.preventDefault();if(!e.repeat)attack()}if(e.key==="Escape")togglePause()});
 addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=false});
 document.addEventListener("gesturestart",e=>e.preventDefault());
