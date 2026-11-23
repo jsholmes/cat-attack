@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<!-- Dino Attack v2: one-player; Space is the claw (no on-screen button). The world, the dinos and the player are plain data in `world`, so a shared multiplayer world can be added later. -->
+<!-- Dino Attack v3 (Velociraptor + Duckbill playable): one-player; Space is the claw (no on-screen button). The world, the dinos and the player are plain data in `world`, so a shared multiplayer world can be added later. -->
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -61,17 +61,19 @@ body{font-family:var(--body);touch-action:none;user-select:none;-webkit-user-sel
 .overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;
   padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
   background:radial-gradient(ellipse at 50% 30%,rgba(60,40,22,.92),rgba(10,8,5,.97) 75%);overflow:auto;touch-action:pan-y}
-.overlay h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(44px,10vw,92px);line-height:.95;color:var(--ink);text-shadow:0 4px 0 #000,0 0 30px rgba(195,52,31,.55);letter-spacing:1px}
+.overlay{justify-content:flex-start}.overlay>:first-child{margin-top:auto}.overlay>:last-child{margin-bottom:auto}
+.overlay h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(40px,9vw,84px);line-height:.95;color:var(--ink);text-shadow:0 4px 0 #000,0 0 30px rgba(195,52,31,.55);letter-spacing:1px}
 .overlay h1 em{font-style:normal;color:var(--blood)}
 .overlay h2{margin:0;font-weight:800;font-size:clamp(20px,3.6vw,28px);color:var(--amber)}
 .overlay p{margin:0;font-size:17px;max-width:40ch;color:var(--dim)}
-.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;width:min(1000px,100%)}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;width:min(860px,100%)}
 @media (max-width:760px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .card{touch-action:manipulation;-webkit-appearance:none;appearance:none;border:2px solid var(--edge);border-radius:18px;background:linear-gradient(#2b2418,#17130d);color:var(--ink);padding:8px 8px 12px;font-family:var(--body);
   display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
 .card:active{transform:scale(.97)}
 .card:focus-visible,.btn:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
-.card canvas{width:100%;aspect-ratio:3/2;display:block}
+.card canvas{width:100%;max-width:100%;aspect-ratio:3/2;display:block}
+@media (max-height:820px) and (min-width:761px){.cards{width:min(700px,100%)}}
 .card b{font-family:var(--display);font-weight:400;font-size:clamp(17px,2.4vw,23px);letter-spacing:.5px}
 .card span{font-size:15px;font-weight:800}
 .card .meat{color:#e2654a}.card .plant{color:#8fd062}
@@ -136,12 +138,12 @@ const SP={
  spino:{name:"Spinosaurus",meat:true,col:{dark:"#3c261a",mid:"#6a452e",belly:"#a8865e",far:"#301e14",stripe:"rgba(28,14,8,.5)",sail:"#8a3018",sail2:"#d9853d"}},
  tri:{name:"Triceratops",meat:false,col:{dark:"#383d2c",mid:"#5d6446",belly:"#9a987a",far:"#2e3324",frill:"#86613a",frill2:"#c9a16a",horn:"#ebe1c9"}},
  anky:{name:"Ankylosaurus",meat:false,col:{dark:"#382e21",mid:"#645440",belly:"#9c8c6d",far:"#2b2419",armor:"#433727",armorHi:"#8f7a58",horn:"#ddd0b3"}},
- raptor:{name:"Raptor",meat:true,col:{dark:"#45311d",mid:"#86643c",belly:"#c6a97c",far:"#372716",stripe:"rgba(36,22,8,.6)",feather:"#2b2116"}},
+ raptor:{name:"Velociraptor",meat:true,col:{dark:"#45311d",mid:"#86643c",belly:"#c6a97c",far:"#372716",stripe:"rgba(36,22,8,.6)",feather:"#2b2116"}},
  stego:{name:"Stegosaurus",meat:false,col:{dark:"#343c27",mid:"#5b6643",belly:"#9b9c75",far:"#2b3120",plate:"#9c4b28",plate2:"#d68a45",horn:"#e3d7bb"}},
  brachio:{name:"Brachiosaurus",meat:false,col:{dark:"#3c423a",mid:"#666e60",belly:"#a3a694",far:"#323730"}},
- para:{name:"Parasaurolophus",meat:false,col:{dark:"#373c23",mid:"#686e40",belly:"#aaa97c",far:"#2e321d",crest:"#9e5a27",crest2:"#e0a050"}},
+ para:{name:"Duckbill",meat:false,col:{dark:"#373c23",mid:"#686e40",belly:"#aaa97c",far:"#2e321d",crest:"#9e5a27",crest2:"#e0a050"}},
 };
-const PLAYABLE=["trex","spino","tri","anky"];
+const PLAYABLE=["trex","spino","raptor","tri","anky","para"];
 const HERBS=["tri","anky","stego","brachio","para","tri","stego","para"];
 const MEATS=["trex","spino","raptor","raptor"];
 
@@ -687,7 +689,7 @@ function drawCards(t){
   for(const {c,sp} of cardCvs){const g=c.getContext("2d");g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,c.width,c.height);
     const bg=g.createLinearGradient(0,0,0,240);bg.addColorStop(0,"#3a3122");bg.addColorStop(1,"#5b5034");g.fillStyle=bg;g.fillRect(0,0,360,240);
     g.fillStyle="rgba(0,0,0,.3)";g.beginPath();g.ellipse(170,212,120,14,0,0,TAU);g.fill();
-    g.translate(sp==="tri"||sp==="anky"?170:160,212);const k=sp==="anky"?3.5:sp==="spino"?2.5:2.75;g.scale(k,k);
+    g.translate(sp==="tri"||sp==="anky"?170:sp==="para"?175:sp==="raptor"?185:160,212);const k=sp==="anky"?3.5:sp==="spino"?2.5:sp==="raptor"?3.2:sp==="para"?2.6:2.75;g.scale(k,k);
     DRAW[sp](g,SP[sp].col,{ph:t*2,mv:.25,jaw:sp==="trex"||sp==="spino"?(Math.sin(t*1.3)>.6?1:0):0,atk:0,angry:false})}
 }
 
