@@ -1,0 +1,1250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- Dino Attack 3D (test spike): same game as /dinos/ v6, drawn with Three.js and 3D dinosaur models built in code. Built by build.py from ../dinos/index.html + src/*.js -->
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Dino Attack 3D">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#16140f">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<link rel="manifest" href="manifest.json">
+<title>Dino Attack 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Baloo+2:wght@600;800&display=swap">
+<style>
+:root{
+  --bg:#16140f; --ink:#f2e8d2; --dim:#b9ab8d; --blood:#c3341f; --amber:#e7a43a; --leaf:#62a33e; --egg:#4aa8ff;
+  --panel:rgba(18,15,10,.72); --edge:rgba(242,232,210,.18);
+  --display:"Black Ops One","Impact","Arial Black",sans-serif;
+  --body:"Baloo 2","Trebuchet MS",system-ui,sans-serif;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16140f}}
+:root[data-theme="dark"]{--bg:#16140f}
+[hidden]{display:none!important}
+html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--ink);overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%}
+html{position:fixed;inset:0}
+*{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;box-sizing:border-box}
+body{font-family:var(--body);touch-action:none;user-select:none;-webkit-user-select:none}
+#gl,#cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#gl{background:#8e9688}
+.hud{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));left:max(12px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:4px;pointer-events:none;
+  background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:8px 14px 9px}
+.who{display:flex;align-items:baseline;gap:10px;line-height:1}
+.who b{font-family:var(--display);font-weight:400;font-size:22px;letter-spacing:.5px}
+.who span{font-size:16px;color:var(--dim);font-weight:600}
+.stars{font-size:20px;letter-spacing:1px;line-height:1;color:#4b4335}
+.stars i{font-style:normal;color:var(--amber);text-shadow:0 0 6px rgba(231,164,58,.6)}
+.food{display:flex;gap:6px;align-items:center;font-size:15px;color:var(--dim);font-weight:600;line-height:1}
+.food .pip{width:22px;height:22px;border-radius:50%;border:2px solid #5a5040;display:grid;place-items:center;font-size:13px}
+.food .pip.on{border-color:var(--amber);background:rgba(231,164,58,.25)}
+.food .pip svg{width:14px;height:14px;opacity:.25}
+.food .pip.on svg{opacity:1}
+.gen{font-size:14px;color:var(--dim)}
+.menu{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));width:48px;height:48px;border-radius:14px;
+  background:var(--panel);border:1px solid var(--edge);color:var(--ink);font-size:20px;display:grid;place-items:center;touch-action:manipulation;-webkit-appearance:none;appearance:none;padding:0}
+.claw{position:fixed;right:max(22px,calc(env(safe-area-inset-right,0px) + 14px));bottom:max(22px,calc(env(safe-area-inset-bottom,0px) + 14px));width:132px;height:132px;border-radius:50%;
+  background:radial-gradient(circle at 40% 35%,#d24a2f,#7c1c10 70%);border:4px solid rgba(255,230,200,.5);box-shadow:0 6px 24px rgba(0,0,0,.55),inset 0 -6px 14px rgba(0,0,0,.35);
+  display:grid;place-items:center;touch-action:none;-webkit-appearance:none;appearance:none;padding:0;color:#fff4e4}
+.claw svg{width:78px;height:78px;pointer-events:none}
+.claw.hit{transform:scale(.92);filter:brightness(1.3)}
+.claw small{position:absolute;bottom:14px;font-family:var(--display);font-size:13px;letter-spacing:1px;pointer-events:none}
+.banner{position:fixed;left:0;right:0;top:22%;text-align:center;pointer-events:none;font-family:var(--display);font-size:clamp(28px,6vw,54px);color:var(--ink);
+  text-shadow:0 3px 0 #000,0 0 18px rgba(0,0,0,.8);opacity:0;transition:opacity .25s;padding:0 16px}
+.banner.show{opacity:1}
+.banner small{display:block;font-family:var(--body);font-weight:800;font-size:clamp(16px,3vw,24px);color:var(--amber);margin-top:6px}
+.overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  background:radial-gradient(ellipse at 50% 30%,rgba(60,40,22,.92),rgba(10,8,5,.97) 75%);overflow:auto;touch-action:pan-y}
+.overlay{justify-content:flex-start}.overlay>:first-child{margin-top:auto}.overlay>:last-child{margin-bottom:auto}
+.overlay h1{margin:0;font-family:var(--display);font-weight:400;font-size:clamp(40px,9vw,84px);line-height:.95;color:var(--ink);text-shadow:0 4px 0 #000,0 0 30px rgba(195,52,31,.55);letter-spacing:1px}
+.overlay h1 em{font-style:normal;color:var(--blood)}
+.overlay h2{margin:0;font-weight:800;font-size:clamp(20px,3.6vw,28px);color:var(--amber)}
+.overlay p{margin:0;font-size:17px;max-width:40ch;color:var(--dim)}
+.cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;width:min(1000px,100%)}
+@media (max-width:1000px) and (min-width:761px){.cards{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media (max-width:760px){.cards{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.card{touch-action:manipulation;-webkit-appearance:none;appearance:none;border:2px solid var(--edge);border-radius:18px;background:linear-gradient(#2b2418,#17130d);color:var(--ink);padding:8px 8px 12px;font-family:var(--body);
+  display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
+.card:active{transform:scale(.97)}
+.card:focus-visible,.btn:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+.card canvas{width:100%;max-width:100%;aspect-ratio:3/2;display:block}
+@media (max-height:820px) and (min-width:761px){.cards{width:min(820px,100%)}}
+.card b{font-family:var(--display);font-weight:400;font-size:clamp(13px,1.75vw,19px);letter-spacing:.2px;hyphens:manual;-webkit-hyphens:manual;line-height:1.1;max-width:100%}
+.card span{font-size:15px;font-weight:800}
+.card .meat{color:#e2654a}.card .plant{color:#8fd062}
+.btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.btn{touch-action:manipulation;-webkit-appearance:none;appearance:none;font-family:var(--body);font-weight:800;font-size:22px;border:0;border-radius:16px;padding:12px 28px;background:var(--blood);color:#fff4e4;box-shadow:0 4px 0 #5e160b}
+.btn.alt{background:#3a3226;box-shadow:0 4px 0 #17130d}
+.help{font-size:15px;color:var(--dim);max-width:60ch}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="cv" aria-label="Dino Attack game"></canvas>
+
+<div class="hud" id="hud" hidden>
+  <div class="who"><b id="hName">T-Rex</b><span id="hSize">size 1 of 10</span></div>
+  <div class="stars" id="hStars" aria-label="stars"></div>
+  <div class="food" id="hFood"></div>
+  <div class="gen" id="hGen" hidden></div>
+</div>
+<button class="menu" id="menuBtn" aria-label="Pause" hidden>&#10074;&#10074;</button>
+<div class="banner" id="banner"></div>
+
+<div class="overlay" id="pick">
+  <h1>DINO <em>ATTACK</em> 3D</h1>
+  <h2 id="pickTitle">Pick your dinosaur</h2>
+  <div class="cards" id="cards"></div>
+  <p class="help">Drag your finger to walk. Tap a dinosaur to attack it (or press the Space bar). Eat 3 that are your size to get a star and grow. Grow to size 10, then follow the arrow to the blue egg to get your own baby! Meat eaters can catch fish in the water.</p>
+</div>
+
+<div class="overlay" id="dead" hidden>
+  <h1 id="deadTitle">YOU GOT <em>EATEN!</em></h1>
+  <p id="deadText"></p>
+  <div class="btns"><button class="btn" id="againBtn">Play again</button><button class="btn alt" id="pickBtn">Pick a dinosaur</button></div>
+</div>
+
+<div class="overlay" id="paused" hidden>
+  <h1>PAUSED</h1>
+  <div class="btns"><button class="btn" id="resumeBtn">Keep playing</button><button class="btn alt" id="quitBtn">Pick a new dinosaur</button></div>
+</div>
+
+<script type="module">
+import * as THREE from "./three.module.min.js";
+const TAU=Math.PI*2, MAXS=10;
+const W=40960;                       // world is W x W and wraps around on both sides
+const wrap=v=>((v%W)+W)%W;
+const wd=d=>{d%=W;if(d>W/2)d-=W;else if(d<-W/2)d+=W;return d};   // shortest wrapped difference
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+const rnd=(a,b)=>b===undefined?Math.random()*a:a+Math.random()*(b-a);
+const pick=a=>a[Math.random()*a.length|0];
+const len=s=>40*Math.pow(1.31,s-1);        // body length (world units) of a size-s dinosaur
+const pspeed=s=>len(s)*2.7;                // player walking speed
+const $=id=>document.getElementById(id);
+
+/* ========================= species ========================= */
+const SP={
+ trex:{name:"T-Rex",meat:true,col:{dark:"#33271a",mid:"#5c4830",belly:"#9b8562",far:"#2a2016",stripe:"rgba(22,15,8,.55)"}},
+ spino:{name:"Spinosaurus",meat:true,col:{dark:"#3c261a",mid:"#6a452e",belly:"#a8865e",far:"#301e14",stripe:"rgba(28,14,8,.5)",sail:"#8a3018",sail2:"#d9853d"}},
+ tri:{name:"Triceratops",meat:false,col:{dark:"#383d2c",mid:"#5d6446",belly:"#9a987a",far:"#2e3324",frill:"#86613a",frill2:"#c9a16a",horn:"#ebe1c9"}},
+ anky:{name:"Ankylosaurus",meat:false,col:{dark:"#382e21",mid:"#645440",belly:"#9c8c6d",far:"#2b2419",armor:"#433727",armorHi:"#8f7a58",horn:"#ddd0b3"}},
+ raptor:{name:"Velociraptor",meat:true,col:{dark:"#45311d",mid:"#86643c",belly:"#c6a97c",far:"#372716",stripe:"rgba(36,22,8,.6)",feather:"#2b2116"}},
+ stego:{name:"Stegosaurus",meat:false,col:{dark:"#343c27",mid:"#5b6643",belly:"#9b9c75",far:"#2b3120",plate:"#9c4b28",plate2:"#d68a45",horn:"#e3d7bb"}},
+ brachio:{name:"Brachiosaurus",meat:false,col:{dark:"#3c423a",mid:"#666e60",belly:"#a3a694",far:"#323730"}},
+ allo:{name:"Allosaurus",meat:true,col:{dark:"#3e2a1c",mid:"#7a5436",belly:"#b39470",far:"#33231a",stripe:"rgba(30,14,6,.55)",horn:"#a8351f"}},
+ dilo:{name:"Dilophosaurus",meat:true,col:{dark:"#2f3a2a",mid:"#5a6a40",belly:"#b3ad7e",far:"#283122",stripe:"rgba(20,26,10,.55)",crest:"#c23f22",crest2:"#f0a040"}},
+ pachy:{name:"Pachycephalo\u00ADsaurus",meat:false,col:{dark:"#3e3426",mid:"#77654a",belly:"#b5a27e",far:"#332b20",dome:"#c9b48a",dome2:"#8a7350",horn:"#e3d7bb"}},
+ carno:{name:"Carnotaurus",meat:true,col:{dark:"#4a2218",mid:"#8a4430",belly:"#c09070",far:"#3a1a12",stripe:"rgba(40,10,4,.5)",horn:"#3a2a1e"}},
+ igu:{name:"Iguanodon",meat:false,col:{dark:"#36402c",mid:"#62704e",belly:"#a8a684",far:"#2c3424",horn:"#ddd2b4"}},
+ theri:{name:"Therizino\u00ADsaurus",meat:false,col:{dark:"#3a3530",mid:"#6e6458",belly:"#b0a48e",far:"#2e2a26",feather:"#4a4038",claw:"#e8dcc2"}},
+ galli:{name:"Gallimimus",meat:false,col:{dark:"#5a4630",mid:"#9a7d58",belly:"#d8c6a0",far:"#4a3a28",stripe:"rgba(60,40,20,.45)",feather:"#3e3022"}},
+ para:{name:"Duckbill",meat:false,col:{dark:"#373c23",mid:"#686e40",belly:"#aaa97c",far:"#2e321d",crest:"#9e5a27",crest2:"#e0a050"}},
+};
+const PLAYABLE=["trex","spino","raptor","allo","dilo","carno","tri","anky","para","brachio","stego","pachy","igu","theri","galli"];
+const HERBS=["tri","anky","stego","brachio","para","pachy","igu","theri","galli","tri","stego","para","igu","galli"];
+const MEATS=["trex","spino","raptor","raptor","allo","dilo","carno"];
+const plantH=s=>len(s)*.8;   // world height of a size-s plant
+
+/* ========================= ground (wrapping value noise) ========================= */
+function hash2(i,j,s){let h=Math.imul(i,374761393)^Math.imul(j,668265263)^Math.imul(s+1,1442695041);h=Math.imul(h^(h>>>13),1274126177);h^=h>>>16;return(h>>>0)/4294967296}
+function vnoise(x,y,cell,seed){const P=W/cell,gx=x/cell,gy=y/cell,i=Math.floor(gx),j=Math.floor(gy),fx=gx-i,fy=gy-j,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy);
+  const i0=((i%P)+P)%P,j0=((j%P)+P)%P,i1=(i0+1)%P,j1=(j0+1)%P;const a=hash2(i0,j0,seed),b=hash2(i1,j0,seed),c=hash2(i0,j1,seed),d=hash2(i1,j1,seed);
+  return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v}
+const fbm=(x,y,cell,seed)=>vnoise(x,y,cell,seed)*.58+vnoise(x,y,cell/2,seed+7)*.28+vnoise(x,y,cell/4,seed+13)*.14;
+const stretch=v=>clamp((v-.5)*2.3+.5,0,1);
+const smooth=(a,b,v)=>{const t=clamp((v-a)/(b-a),0,1);return t*t*(3-2*t)};
+const GC={desert:[164,112,66],dry:[142,124,78],meadow:[78,100,46],forest:[48,66,33],swamp:[66,72,42],rock:[112,105,92]};
+const RAMP=[[0,GC.desert],[.26,GC.desert],[.38,GC.dry],[.5,GC.meadow],[.66,GC.forest],[.8,GC.swamp],[1,GC.swamp]];
+function moist(x,y){return stretch(fbm(x,y,8192,11))}
+function rocky(x,y){return stretch(fbm(x,y,4096,23))}
+function groundRGB(x,y){
+  const m=moist(x,y), r=rocky(x,y);let k=1;while(k<RAMP.length-1&&RAMP[k][0]<m)k++;
+  const [t0,c0]=RAMP[k-1],[t1,c1]=RAMP[k],t=clamp((m-t0)/(t1-t0||1),0,1);
+  let col=[lerp(c0[0],c1[0],t),lerp(c0[1],c1[1],t),lerp(c0[2],c1[2],t)];
+  const rk=smooth(.64,.78,r);col=[lerp(col[0],GC.rock[0],rk),lerp(col[1],GC.rock[1],rk),lerp(col[2],GC.rock[2],rk)];
+  const d=.84+.3*(vnoise(x,y,512,5)*.6+vnoise(x,y,128,9)*.4);
+  col=[col[0]*d,col[1]*d,col[2]*d];
+  const w=waterAmt(x,y);
+  if(w>.25){const sand=[150,138,98];const b=smooth(.25,.48,w);col=[lerp(col[0],sand[0],b),lerp(col[1],sand[1],b),lerp(col[2],sand[2],b)];
+    if(w>.48){const deep=smooth(.5,1,w)*(.6+.4*vnoise(x,y,256,51));const sh=[70,118,118],dp=[24,62,84];const t=smooth(.48,.55,w);
+      const wc=[lerp(sh[0],dp[0],deep),lerp(sh[1],dp[1],deep),lerp(sh[2],dp[2],deep)];col=[lerp(col[0],wc[0],t),lerp(col[1],wc[1],t),lerp(col[2],wc[2],t)]}}
+  return col;
+}
+// lakes and rivers
+function waterAmt(x,y){
+  const lake=smooth(.66,.74,stretch(fbm(x,y,4096,37)));
+  const rv=Math.abs(vnoise(x,y,8192,41)*.75+vnoise(x,y,2048,43)*.25-.5);
+  const river=1-smooth(.012,.03,rv);
+  return Math.max(lake,river);
+}
+const isWater=(x,y)=>waterAmt(wrap(x),wrap(y))>.5;
+function biome(x,y){const m=moist(x,y),r=rocky(x,y);if(r>.72)return"rock";if(m<.32)return"desert";if(m<.44)return"dry";if(m<.6)return"meadow";if(m<.76)return"forest";return"swamp"}
+
+const CH=512, CR=64, NC=W/CH;
+const chunks=new Map();
+function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+/* ========================= 3D model building =========================
+   Every dinosaur is built from code: smooth "lofted" tubes (body, tail, neck, legs, skull, jaw)
+   plus horns, teeth, claws, plates, sails and frills. All parts are skinned to a small skeleton
+   so the tail swings, the legs walk and the jaw opens. Units match the old 2D drawings:
+   a dinosaur is about 100 units long (L/100), feet on y=0, facing +x, z is its left side. */
+const V3=THREE.Vector3, Z3=new V3(0,0,1);
+const col3=h=>new THREE.Color(h);
+const mixC=(a,b,t)=>a.clone().lerp(b,clamp(t,0,1));
+
+// Catmull-Rom through control points [x,y,z,w,h]
+function catmull(pts,sub){
+  const out=[],n=pts.length;
+  for(let i=0;i<n-1;i++){const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(n-1,i+2)];
+    for(let s=0;s<sub;s++){const t=s/sub,t2=t*t,t3=t2*t,r=[];
+      for(let k=0;k<5;k++)r.push(.5*(2*p1[k]+(-p0[k]+p2[k])*t+(2*p0[k]-5*p1[k]+4*p2[k]-p3[k])*t2+(-p0[k]+3*p1[k]-3*p2[k]+p3[k])*t3));
+      out.push(r)}}
+  out.push(pts[n-1].slice());return out}
+
+// a bucket collects geometry for one material, then becomes one (skinned) mesh
+class Bk{
+  constructor(){this.p=[];this.n=[];this.u=[];this.c=[];this.si=[];this.sw=[];this.i=[]}
+  add(g,bone,col){
+    if(!g.attributes.normal)g.computeVertexNormals();
+    const base=this.p.length/3,P=g.attributes.position,N=g.attributes.normal,U=g.attributes.uv,C=g.attributes.color,S=g.userData.skin;
+    for(let v=0;v<P.count;v++){this.p.push(P.getX(v),P.getY(v),P.getZ(v));this.n.push(N.getX(v),N.getY(v),N.getZ(v));
+      this.u.push(U?U.getX(v):0,U?U.getY(v):0);
+      if(C)this.c.push(C.getX(v),C.getY(v),C.getZ(v));else this.c.push(col.r,col.g,col.b);
+      if(S){const s=S[v];this.si.push(s[0],s[1],0,0);this.sw.push(1-s[2],s[2],0,0)}else{this.si.push(bone||0,0,0,0);this.sw.push(1,0,0,0)}}
+    if(g.index)for(let k=0;k<g.index.count;k++)this.i.push(base+g.index.getX(k));else for(let k=0;k<P.count;k++)this.i.push(base+k);
+  }
+  geo(skinned){
+    if(!this.p.length)return null;const g=new THREE.BufferGeometry();
+    g.setAttribute("position",new THREE.Float32BufferAttribute(this.p,3));g.setAttribute("normal",new THREE.Float32BufferAttribute(this.n,3));
+    g.setAttribute("uv",new THREE.Float32BufferAttribute(this.u,2));g.setAttribute("color",new THREE.Float32BufferAttribute(this.c,3));
+    if(skinned){g.setAttribute("skinIndex",new THREE.Uint16BufferAttribute(this.si,4));g.setAttribute("skinWeight",new THREE.Float32BufferAttribute(this.sw,4))}
+    g.setIndex(this.i);g.computeBoundingBox();g.computeBoundingSphere();return g}
+}
+
+// a smooth tube through control points; o.color(oy,p,s,th) colours each vertex, o.skin(s,p) gives [boneA,boneB,t]
+function loftGeo(ctrl,o){
+  const sub=o.sub||3,RS=o.rs||12,P=catmull(ctrl,sub),N=P.length,R1=RS+1;
+  const S=[0];for(let i=1;i<N;i++)S.push(S[i-1]+Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1],P[i][2]-P[i-1][2]));
+  const pos=[],uv=[],col=[],skin=[],idx=[],t=new V3(),n=new V3(),b=new V3(),q=new V3();
+  for(let i=0;i<N;i++){
+    const p=P[i],pa=P[Math.max(0,i-1)],pb=P[Math.min(N-1,i+1)];
+    t.set(pb[0]-pa[0],pb[1]-pa[1],pb[2]-pa[2]).normalize();
+    n.crossVectors(Z3,t);if(n.lengthSq()<1e-6)n.set(0,1,0);n.normalize();b.crossVectors(t,n).normalize();
+    const w=Math.max(.12,p[3]),h=Math.max(.12,p[4]),sk=o.skin?o.skin(S[i],p):null;
+    for(let j=0;j<=RS;j++){const th=j/RS*TAU,c=Math.cos(th),s=Math.sin(th);
+      q.copy(n).multiplyScalar(c*h).addScaledVector(b,s*w);
+      pos.push(p[0]+q.x,p[1]+q.y,p[2]+q.z);uv.push(S[i]/(o.uvs||14),j/RS*(o.uvr||2));
+      const cc=o.color(q.y/(q.length()||1),p,S[i],th);col.push(cc.r,cc.g,cc.b);if(o.skin)skin.push(sk)}
+  }
+  for(let i=0;i<N-1;i++)for(let j=0;j<RS;j++){const a=i*R1+j,b2=a+1,c=a+R1,d=c+1;idx.push(a,b2,c,b2,d,c)}
+  for(const [ri,dir] of [[0,-1],[N-1,1]]){const p=P[ri],ci=pos.length/3,k=ri*R1;pos.push(p[0],p[1],p[2]);uv.push(0,0);col.push(col[k*3],col[k*3+1],col[k*3+2]);if(o.skin)skin.push(skin[k]);
+    for(let j=0;j<RS;j++){const a=k+j,b2=a+1;if(dir<0)idx.push(ci,b2,a);else idx.push(ci,a,b2)}}
+  const g=new THREE.BufferGeometry();
+  g.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));g.setAttribute("uv",new THREE.Float32BufferAttribute(uv,2));g.setAttribute("color",new THREE.Float32BufferAttribute(col,3));
+  g.setIndex(idx);g.computeVertexNormals();
+  const nm=g.attributes.normal;for(let i=0;i<N;i++){const a=i*R1,z=a+RS;const x=nm.getX(a)+nm.getX(z),y=nm.getY(a)+nm.getY(z),zz=nm.getZ(a)+nm.getZ(z),l=Math.hypot(x,y,zz)||1;nm.setXYZ(a,x/l,y/l,zz/l);nm.setXYZ(z,x/l,y/l,zz/l)}
+  if(o.skin)g.userData.skin=skin;
+  return g;
+}
+// a thin double-sided sheet (sail, plates, crests): base(x)->[x,y,z], top(x)->[x,y,z]
+function finGeo(x0,x1,n,base,top,color,skinFn,rows=3){
+  const pos=[],col=[],uv=[],skin=[],idx=[];
+  for(let k=0;k<=n;k++){const x=lerp(x0,x1,k/n),B=base(x),T=top(x);
+    for(let r=0;r<rows;r++){const v=r/(rows-1);const p=[lerp(B[0],T[0],v),lerp(B[1],T[1],v),lerp(B[2],T[2],v)];pos.push(...p);uv.push(k/n,v);
+      const c=color(v,k,x);col.push(c.r,c.g,c.b);if(skinFn)skin.push(skinFn(p[0]))}}
+  for(let k=0;k<n;k++)for(let r=0;r<rows-1;r++){const a=k*rows+r,b=a+1,c=a+rows,d=c+1;idx.push(a,c,b,b,c,d)}
+  const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(pos,3));g.setAttribute("color",new THREE.Float32BufferAttribute(col,3));g.setAttribute("uv",new THREE.Float32BufferAttribute(uv,2));
+  g.setIndex(idx);g.computeVertexNormals();if(skinFn)g.userData.skin=skin;return g}
+
+function hashf(x,y,z){const s=Math.sin(x*12.9898+y*78.233+z*37.719)*43758.5453;return s-Math.floor(s)}
+
+class MB{
+  constructor(sp){
+    this.sp=sp;this.bones=[];this.B={};this.k={skin:new Bk(),bone:new Bk(),eye:new Bk(),dark:new Bk(),acc:new Bk()};
+    const c=SP[sp].col;this.c={dark:col3(c.dark),mid:col3(c.mid),belly:col3(c.belly)};this.cs=c;
+    this.boneCol=col3("#e8dcbc");this.hornCol=col3(c.horn||"#e3d7bb");this.bounds=[];
+  }
+  bone(name,parent,x,y,z=0){this.B[name]=this.bones.length;this.bones.push({name,parent:parent==null?-1:this.B[parent],p:[x,y,z]});return this.B[name]}
+  bi(b){return typeof b==="number"?b:this.B[b]}
+  skinColor(stripe){const c=this.c;return(oy,p,s,th)=>{
+    let cc=oy>0?mixC(c.mid,c.dark,oy*1.35):mixC(c.mid,c.belly,-oy*1.5);
+    if(stripe&&oy>-.15){const st=Math.sin(p[0]*.42+Math.sin(p[2]*.3+th)*.6);if(st>.45)cc.lerp(c.dark,.55).multiplyScalar(.8)}
+    const m=.88+.22*hashf(Math.round(p[0]*.6),Math.round(th*3),this.sp.length);return cc.multiplyScalar(m)}}
+  // chained skinning by arc length (for one continuous tube spanning several bones)
+  chainSkin(ctrl,sub,chain,blend){
+    const P=catmull(ctrl,sub),S=[0];for(let i=1;i<P.length;i++)S.push(S[i-1]+Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1],P[i][2]-P[i-1][2]));
+    const bd=chain.map(([ci,a,b])=>({s:S[Math.min(P.length-1,ci*sub)],a:this.bi(a),b:this.bi(b)}));
+    return s=>{for(const d of bd)if(Math.abs(s-d.s)<blend){return[d.a,d.b,smooth(d.s-blend,d.s+blend,s)]}
+      let ow=bd[0].a;for(const d of bd)if(s>=d.s)ow=d.b;return[ow,ow,0]}}
+  loft(bucket,ctrl,o={}){
+    const sub=o.sub||3;let skin=null;
+    if(o.chain)skin=this.chainSkin(ctrl,sub,o.chain,o.blend||4);else{const b=this.bi(o.bone||0);skin=()=>[b,b,0]}
+    const g=loftGeo(ctrl,{sub,rs:o.rs,skin,color:o.color||this.skinColor(o.stripe),uvs:o.uvs});
+    this.k[bucket].add(g);return g}
+  // main body: tail tip -> head pivot, skinned along tail, torso and neck bones
+  body(ctrl,chain,stripe){
+    const sub=3;this.bodyCtrl=ctrl;
+    const P=catmull(ctrl,sub);this.bounds=chain.map(([ci,a,b])=>({x:P[Math.min(P.length-1,ci*sub)][0],a:this.bi(a),b:this.bi(b)}));
+    this.loft("skin",ctrl,{chain,blend:5,rs:16,stripe,sub});
+  }
+  skinX(x,blend=5){const bd=this.bounds;for(const d of bd)if(Math.abs(x-d.x)<blend)return[d.a,d.b,smooth(d.x-blend,d.x+blend,x)];let ow=bd[0].a;for(const d of bd)if(x>=d.x)ow=d.b;return[ow,ow,0]}
+  boneX(x){const s=this.skinX(x);return s[2]<.5?s[0]:s[1]}
+  at(x){const b=this.bodyCtrl;if(x<=b[0][0])return{y:b[0][1],w:b[0][3],h:b[0][4]};
+    for(let i=0;i<b.length-1;i++){const p=b[i],q=b[i+1];if(x<=q[0]){const t=(x-p[0])/(q[0]-p[0]||1);return{y:lerp(p[1],q[1],t),w:lerp(p[3],q[3],t),h:lerp(p[4],q[4],t)}}}
+    const l=b[b.length-1];return{y:l[1],w:l[3],h:l[4]}}
+  cone(bucket,bone,base,tip,r,col,seg=7){
+    const a=new V3(...base),d=new V3(...tip).sub(a),L=d.length();const g=new THREE.ConeGeometry(r,L,seg,1,false);g.translate(0,L/2,0);
+    g.applyMatrix4(new THREE.Matrix4().compose(a,new THREE.Quaternion().setFromUnitVectors(new V3(0,1,0),d.normalize()),new V3(1,1,1)));
+    this.k[bucket].add(g,this.bi(bone),col)}
+  ell(bucket,bone,c,r,col,rot,seg=14,colFn){
+    const g=new THREE.SphereGeometry(1,seg,Math.max(6,seg*.7|0));
+    if(colFn){const P=g.attributes.position,cs=[];for(let v=0;v<P.count;v++){const cc=colFn(P.getX(v),P.getY(v),P.getZ(v));cs.push(cc.r,cc.g,cc.b)}g.setAttribute("color",new THREE.Float32BufferAttribute(cs,3))}
+    g.scale(r[0],r[1],r[2]);if(rot){g.rotateX(rot[0]||0);g.rotateY(rot[1]||0);g.rotateZ(rot[2]||0)}g.translate(c[0],c[1],c[2]);
+    this.k[bucket].add(g,this.bi(bone),col)}
+  fin(bucket,x0,x1,n,base,top,color,bone){
+    const g=finGeo(x0,x1,n,base,top,color,bone==null?x=>this.skinX(x):null);this.k[bucket].add(g,bone==null?0:this.bi(bone))}
+  // eye with slit pupil and an angry brow ridge
+  eye(e){const [x,y,z,r]=e;for(const s of[1,-1]){
+    this.ell("eye","head",[x,y,s*z],[r,r,r*.75],col3("#e0a030"),null,12);
+    this.ell("dark","head",[x+r*.22,y,s*(z+r*.62)],[r*.2,r*.78,r*.16],col3("#050302"),null,8);
+    this.ell("skin","head",[x-r*.25,y+r*1.05,s*(z-r*.05)],[r*2.1,r*.62,r*1.05],this.c.dark,[0,0,-.12],10)}}
+  done(kind,extra){
+    const geos={};for(const k in this.k)geos[k]=this.k[k].geo(true);
+    return{sp:this.sp,kind,bones:this.bones,B:this.B,geos,...extra}}
+}
+
+/* ----- the two body plans ----- */
+function headParts(m,P){
+  const b=P.body,last=b[b.length-1];
+  m.loft("skin",P.skull.map(p=>[p[0],p[1],0,p[2],p[3]]),{bone:"head",rs:14,stripe:false});
+  m.loft("skin",P.jaw.pts.map(p=>[p[0],p[1],0,p[2],p[3]]),{bone:"jaw",rs:12});
+  // inside of the mouth (seen when the jaw opens)
+  const s0=P.skull[0],s1=P.skull[P.skull.length-1],jy=P.jaw.pts[1][1]+P.jaw.pts[1][3]*.6;
+  m.ell("dark","head",[(P.jaw.h[0]+s1[0])/2,jy+.6,0],[(s1[0]-P.jaw.h[0])*.46,1.4,P.jaw.pts[1][2]*.75],col3("#5a0f0c"),null,10);
+  m.ell("dark","jaw",[(P.jaw.h[0]+s1[0])/2,jy-.4,0],[(s1[0]-P.jaw.h[0])*.4,1.1,P.jaw.pts[1][2]*.6],col3("#7a1a14"),null,10);
+  if(P.teeth){const T=P.teeth,n=Math.max(3,Math.round((T.x1-T.x0)/T.ts));
+    for(let k=0;k<n;k++){const t=k/(n-1),x=lerp(T.x0,T.x1,t),z=lerp(T.z0,T.z1,t),ln=T.len*(.75+.35*Math.sin(t*Math.PI));
+      for(const s of[1,-1]){m.cone("bone","head",[x,T.y+.8,s*z],[x+.35,T.y-ln,s*z*.96],T.len*.26,m.boneCol,5);
+        if(k<n-1)m.cone("bone","jaw",[x+T.ts*.45,T.y-1,s*z*.86],[x+T.ts*.45+.3,T.y+ln*.75,s*z*.84],T.len*.22,m.boneCol,5)}}}
+  // nostrils
+  for(const s of[1,-1])m.ell("dark","head",[s1[0]-s1[2]*1.6,s1[1]+s1[3]*.4,s*s1[2]*.7],[.8,.45,.5],col3("#120a06"),null,6);
+  m.eye(P.eye);
+}
+function biped(sp,P){
+  const m=new MB(sp),b=P.body.map(p=>[p[0],p[1],0,p[2],p[3]]),last=b.length-1,Lg=P.leg;
+  m.bone("root",null,0,0,0);m.bone("body","root",Lg.hip[0],Lg.hip[1]);
+  m.bone("tail0","body",b[P.tail[0]][0],b[P.tail[0]][1]);m.bone("tail1","tail0",b[P.tail[1]][0],b[P.tail[1]][1]);m.bone("tail2","tail1",b[P.tail[2]][0],b[P.tail[2]][1]);
+  m.bone("neck0","body",b[P.neck[0]][0],b[P.neck[0]][1]);m.bone("neck1","neck0",b[P.neck[1]][0],b[P.neck[1]][1]);
+  m.bone("head","neck1",b[last][0],b[last][1]);m.bone("jaw","head",P.jaw.h[0],P.jaw.h[1]);
+  for(const s of[1,-1]){const nm=s>0?"L":"R",z=Lg.hip[2]*s;
+    m.bone("thigh"+nm,"body",Lg.hip[0],Lg.hip[1],z);m.bone("shin"+nm,"thigh"+nm,Lg.knee[0],Lg.knee[1],z);m.bone("foot"+nm,"shin"+nm,Lg.ankle[0],Lg.ankle[1],z);
+    if(P.arm){const A=P.arm;m.bone("arm"+nm,"neck0",A.sh[0],A.sh[1],A.sh[2]*s)}}
+  m.body(b,[[P.tail[2],"tail2","tail1"],[P.tail[1],"tail1","tail0"],[P.tail[0],"tail0","body"],[P.neck[0],"body","neck0"],[P.neck[1],"neck0","neck1"],[last,"neck1","head"]],P.stripe);
+  headParts(m,P);
+  for(const s of[1,-1]){const nm=s>0?"L":"R",z=Lg.hip[2]*s,[r0,r1,r2,r3]=Lg.r,h=Lg.hip,k=Lg.knee,a=Lg.ankle,f=Lg.ball;
+    const pts=[[h[0]-r0*.2,h[1]+r0*.55,z*.75,r0*.75,r0*.85],[h[0]+r0*.1,h[1]-r0*.1,z,r0*1.0,r0*1.15],[lerp(h[0],k[0],.55)+r0*.2,lerp(h[1],k[1],.55),z,r0*.85,r0*.95],[k[0],k[1],z,r1,r1*1.05],
+      [lerp(k[0],a[0],.5),lerp(k[1],a[1],.5),z,r1*.72,r1*.8],[a[0],a[1],z,r2,r2],[f[0],f[1]+r3*.5,z,r3,r3*.8]];
+    m.loft("skin",pts,{chain:[[3,"thigh"+nm,"shin"+nm],[5,"shin"+nm,"foot"+nm]],blend:2.5,rs:12});
+    const toe=Lg.toe||r3*3;
+    for(const t of[-1,0,1]){const tz=z+t*r3*.8,tip=[f[0]+toe*(t?0.8:1),.4,z+t*r3*1.9];
+      m.cone("skin","foot"+nm,[f[0]-r3*.3,f[1]+r3*.35,tz],tip,r3*.5,m.c.mid,6);
+      m.cone("bone","foot"+nm,[tip[0]-r3*.4,tip[1]+.3,tip[2]],[tip[0]+r3*.7,0,tip[2]],r3*.3,Lg.claw?m.boneCol:col3("#3a3226"),5)}
+    if(Lg.sickle)m.cone("bone","foot"+nm,[f[0]+r3*.3,f[1]+r3*.9,z+s*r3*.2],[f[0]+r3*2.2,f[1]+r3*3.2,z+s*r3*.3],r3*.45,m.boneCol,6);
+    if(P.arm){const A=P.arm,sz=A.sh[2]*s,ez=sz*1.05,hz=sz*1.1;
+      m.loft("skin",[[A.sh[0]-1,A.sh[1]+1,sz*.6,A.r[0]*1.1,A.r[0]*1.1],[A.sh[0],A.sh[1],sz,A.r[0],A.r[0]],[A.el[0],A.el[1],ez,A.r[0]*.8,A.r[0]*.8],[A.hand[0],A.hand[1],hz,A.r[1],A.r[1]]],{bone:"arm"+nm,rs:10});
+      const nC=A.claws||2,cl=A.cl||A.r[1]*2.2;for(let i=0;i<nC;i++){const cz=hz+(i-(nC-1)/2)*A.r[1]*.9;
+        if(A.big)m.loft("bone",[[A.hand[0],A.hand[1],cz,A.r[1]*.42,A.r[1]*.5],[A.hand[0]+cl*.45,A.hand[1]-cl*.25,cz,A.r[1]*.32,A.r[1]*.38],[A.hand[0]+cl*.55,A.hand[1]-cl*.75,cz,A.r[1]*.2,A.r[1]*.24],[A.hand[0]+cl*.35,A.hand[1]-cl,cz,.1,.1]],{bone:"arm"+nm,rs:6,sub:2,color:()=>col3(SP[sp].col.claw||"#e8dcc2")});
+        else m.cone("bone","arm"+nm,[A.hand[0],A.hand[1],cz],[A.hand[0]+cl*.6,A.hand[1]-cl*.8,cz],A.r[1]*.32,m.boneCol,5)}}}
+  if(P.extra)P.extra(m);
+  return m.done("biped",{open:P.open||.55,hipY:Lg.hip[1]});
+}
+function quad(sp,P){
+  const m=new MB(sp),b=P.body.map(p=>[p[0],p[1],0,p[2],p[3]]),last=b.length-1,Bk_=P.back,F=P.front;
+  m.bone("root",null,0,0,0);m.bone("body","root",Bk_.hip[0],Bk_.hip[1]);
+  m.bone("tail0","body",b[P.tail[0]][0],b[P.tail[0]][1]);m.bone("tail1","tail0",b[P.tail[1]][0],b[P.tail[1]][1]);m.bone("tail2","tail1",b[P.tail[2]][0],b[P.tail[2]][1]);
+  m.bone("neck0","body",b[P.neck[0]][0],b[P.neck[0]][1]);m.bone("neck1","neck0",b[P.neck[1]][0],b[P.neck[1]][1]);
+  m.bone("head","neck1",b[last][0],b[last][1]);m.bone("jaw","head",P.jaw.h[0],P.jaw.h[1]);
+  for(const s of[1,-1]){const nm=s>0?"L":"R";
+    m.bone("thigh"+nm,"body",Bk_.hip[0],Bk_.hip[1],Bk_.hip[2]*s);m.bone("shin"+nm,"thigh"+nm,Bk_.knee[0],Bk_.knee[1],Bk_.hip[2]*s);
+    m.bone("fthigh"+nm,"body",F.hip[0],F.hip[1],F.hip[2]*s);m.bone("fshin"+nm,"fthigh"+nm,F.knee[0],F.knee[1],F.hip[2]*s)}
+  m.body(b,[[P.tail[2],"tail2","tail1"],[P.tail[1],"tail1","tail0"],[P.tail[0],"tail0","body"],[P.neck[0],"body","neck0"],[P.neck[1],"neck0","neck1"],[last,"neck1","head"]],P.stripe);
+  headParts(m,P);
+  for(const s of[1,-1]){const nm=s>0?"L":"R";
+    for(const [Lg,pre] of [[Bk_,""],[F,"f"]]){const z=Lg.hip[2]*s,[r0,r1,r2]=Lg.r,h=Lg.hip,k=Lg.knee,f=Lg.foot;
+      const pts=[[h[0],h[1]+r0*.7,z*.7,r0*.8,r0*.9],[h[0],h[1],z,r0,r0*1.1],[lerp(h[0],k[0],.5),lerp(h[1],k[1],.5),z,r0*.85,r0*.9],[k[0],k[1],z,r1,r1],[lerp(k[0],f[0],.5),lerp(k[1],f[1],.5),z,r1*.85,r1*.85],[f[0],f[1]+r2*.6,z,r2,r2],[f[0]+.5,f[1]+.4,z,r2*1.08,r2*.9]];
+      m.loft("skin",pts,{chain:[[3,pre+"thigh"+nm,pre+"shin"+nm]],blend:3,rs:12});
+      for(let i=0;i<3;i++){const az=z+(i-1)*r2*.6;m.ell("bone",pre+"shin"+nm,[f[0]+r2*.85,r2*.28,az],[r2*.32,r2*.3,r2*.25],col3("#cdbf9e"),null,6)}}}
+  if(P.extra)P.extra(m);
+  return m.done("quad",{open:P.open||.3,hipY:Bk_.hip[1]});
+}
+const fsheet=(m,x0,x1,h,w,z,col0,col1,bone,lean=0)=>m.fin("acc",x0,x1,8,x=>[x,m.at(x).y+m.at(x).h*.7,z],x=>{const t=(x-x0)/(x1-x0),pk=Math.pow(Math.max(0,1-Math.abs(t*2-1)),.65);return[x+lean*pk,m.at(x).y+m.at(x).h*.7+h*pk,z]},v=>mixC(col0,col1,v),bone);
+
+/* ----- the 15 species ----- */
+const SPEC={
+ trex:()=>biped("trex",{stripe:true,open:.6,
+  body:[[-70,54,.5,.5],[-56,54,3,3],[-40,54,6,6],[-25,52,10,9],[-12,50,14,13],[0,49,17,16.5],[12,49,15,15],[21,55,10.5,10.5],[28,60,8.5,9]],tail:[4,3,2],neck:[6,7],
+  skull:[[24,63,7.5,8],[32,65,8.8,9],[42,64.5,8,8],[52,61.5,6.2,5.8],[59,59.5,4.4,4.2],[62.5,58.5,2,2]],jaw:{h:[29,56],pts:[[27,54.5,6.6,4],[38,52.2,6.2,3.5],[50,52.4,5,3],[58,54.2,3.6,2.2],[61,55.2,1.5,1]]},
+  teeth:{x0:33,x1:59,y:56.5,z0:6.6,z1:3.2,len:4.2,ts:3.4},eye:[44,67,6.8,2.2],
+  leg:{hip:[-2,44,10],knee:[8,27],ankle:[-3,12],ball:[3,1.5],r:[9.5,5.2,3.6,3],toe:8,claw:true},
+  arm:{sh:[18,44,9],el:[22,37],hand:[26,37],r:[2.4,1.8],claws:2,cl:3}}),
+ spino:()=>biped("spino",{stripe:true,open:.55,
+  body:[[-78,50,.5,.5],[-64,50,3.5,4.5],[-48,49,6,7],[-31,47,9,9],[-15,47,12,11],[0,47,15,13],[12,49,13,12],[22,56,8,8],[31,62,6,6.5]],tail:[4,3,2],neck:[6,7],
+  skull:[[28,63,5.5,6],[36,65,5,5.2],[48,63,3.6,3.6],[60,61.4,3,3],[67,61.4,3.4,2.7],[71,60.5,1.6,1.3]],jaw:{h:[32,59],pts:[[30,58.4,4.5,2.6],[44,57.2,3.2,2],[58,57.6,2.6,1.6],[67,58.2,2.6,1.5],[70,58.8,1,.8]]},
+  teeth:{x0:38,x1:69,y:59.6,z0:3.4,z1:2.4,len:3.4,ts:3.2},eye:[39,66.5,4.4,2],
+  leg:{hip:[-2,40,9],knee:[7,25],ankle:[-3,11],ball:[3,1.5],r:[8,4.6,3.2,2.7],toe:7,claw:true},
+  arm:{sh:[16,44,8],el:[24,36],hand:[31,35],r:[3,2.1],claws:3,cl:4},
+  extra:m=>{const c=m.cs,s0=col3(c.dark),s1=col3(c.sail),s2=col3(c.sail2);
+   m.fin("acc",-30,26,18,x=>[x,m.at(x).y+m.at(x).h*.75,0],x=>{const t=(x+30)/56;return[x-4,m.at(x).y+m.at(x).h*.75+2+40*Math.pow(Math.sin(Math.PI*t),.85),0]},(v,k)=>{const c2=v<.5?mixC(s0,s1,v*2):mixC(s1,s2,(v-.5)*2);return k%2?c2.multiplyScalar(.72):c2})}}),
+ raptor:()=>biped("raptor",{stripe:true,open:.65,
+  body:[[-70,50,.4,.4],[-56,50,2,2.2],[-40,48,3.6,3.6],[-26,46,5.6,5.2],[-12,43,8,7.6],[0,40,10,10],[10,43,8,8],[18,52,4.6,5],[23,56,4,4.5]],tail:[4,3,2],neck:[6,7],
+  skull:[[20,58,4,4.6],[27,60,4.3,4.6],[36,58,3,3.1],[43,56,1.8,1.7],[45.5,55.4,.8,.8]],jaw:{h:[23,55.4],pts:[[22,55,3.4,2],[32,53.6,2.8,1.6],[42,54.6,1.6,1],[44.5,55,.6,.5]]},
+  teeth:{x0:28,x1:43,y:55.6,z0:2.7,z1:1.4,len:2.6,ts:2.6},eye:[30,60.4,3.4,1.8],
+  leg:{hip:[0,36,7],knee:[7,23],ankle:[-2,10],ball:[3,1],r:[6,3.4,2.1,1.7],toe:5,claw:true,sickle:true},
+  arm:{sh:[12,41,6],el:[19,35],hand:[26,35],r:[2.2,1.6],claws:3,cl:3.5},
+  extra:m=>{const f=col3(SP.raptor.col.feather);for(let x=-66;x<20;x+=3.2){const a=m.at(x);m.cone("skin",m.boneX(x),[x,a.y+a.h*.75,0],[x-4,a.y+a.h+3.2,0],1.1,f,4)}
+   for(const s of[1,-1])for(let i=0;i<4;i++)m.cone("skin","arm"+(s>0?"L":"R"),[14+i*3,38-i,s*6.6],[11+i*3,32-i,s*7.4],.9,f,4)}}),
+ allo:()=>biped("allo",{stripe:true,open:.58,
+  body:[[-72,50,.5,.5],[-58,50,3,3.6],[-42,50,6,6],[-25,48,9,8.6],[-11,46,12,11],[0,45,14,13],[12,47,12,12],[20,54,8,8.6],[27,57,7,7.5]],tail:[4,3,2],neck:[6,7],
+  skull:[[23,58.5,6,7],[31,61,6.6,7],[42,60.4,5.6,5.6],[52,57.2,4,4],[57,55.4,2,2]],jaw:{h:[26,53.6],pts:[[25,53,5,3],[36,50.6,4.5,3],[48,51.2,3.6,2.4],[55,53.2,2,1.4],[56.5,54,.8,.6]]},
+  teeth:{x0:31,x1:55,y:54.4,z0:5,z1:2.4,len:3.6,ts:3.1},eye:[38,61.4,5.4,2],
+  leg:{hip:[-2,40,9],knee:[8,25],ankle:[-3,11],ball:[3,1.5],r:[8.4,4.6,3.1,2.6],toe:7,claw:true},
+  arm:{sh:[16,41,8],el:[24,33],hand:[31,33],r:[3,2.2],claws:3,cl:4.2},
+  extra:m=>{for(const s of[1,-1])m.cone("bone","head",[37,65.5,s*4.4],[36,70.5,s*4.6],2.2,col3(SP.allo.col.horn),6)}}),
+ dilo:()=>biped("dilo",{stripe:true,open:.62,
+  body:[[-72,48,.4,.4],[-56,49,2.6,2.6],[-40,48,4.6,4.6],[-24,46,7,6.6],[-10,44,9,8.6],[0,43,11,11],[10,46,9,9],[18,56,5.6,6],[25,61,5,5]],tail:[4,3,2],neck:[6,7],
+  skull:[[23,63,4.6,5],[31,65,4.8,5],[40,63,3.6,3.6],[48,61,2.2,2],[50.5,60.4,1,1]],jaw:{h:[27,60],pts:[[26,60,4,2.2],[36,58.6,3.4,2],[46,59.6,2,1.3],[49.5,60.1,.8,.6]]},
+  teeth:{x0:31,x1:49,y:60.6,z0:3.4,z1:1.6,len:2.8,ts:2.8},eye:[33,65.4,4.1,1.8],
+  leg:{hip:[0,38,7],knee:[7,24],ankle:[-2,10],ball:[3,1],r:[6.6,3.7,2.4,2],toe:5.5,claw:true},
+  arm:{sh:[12,41,6],el:[20,33],hand:[26,35],r:[2.4,1.7],claws:3,cl:3},
+  extra:m=>{const c0=col3(SP.dilo.col.crest),c1=col3(SP.dilo.col.crest2);
+   for(const s of[1,-1])m.fin("acc",27,47,8,x=>[x,62+3.6*Math.cos((x-36)/12),s*1.4],x=>{const t=(x-27)/20;return[x-2,66+14*Math.pow(Math.sin(Math.PI*Math.pow(t,.8)),.8),s*1.9]},(v,k)=>k%2?mixC(c0,c1,v).multiplyScalar(.78):mixC(c0,c1,v),"head")}}),
+ carno:()=>biped("carno",{stripe:false,open:.6,
+  body:[[-72,50,.5,.5],[-58,50,3,3.6],[-42,50,6,6],[-25,48,9,8.6],[-11,46,12,11],[0,45,14,13],[12,47,12,12],[20,54,8,8.6],[26,57,7,7.5]],tail:[4,3,2],neck:[6,7],
+  skull:[[22,59,6.2,7.6],[30,62,6.6,7.2],[40,60.4,5.6,5.6],[46.5,57.2,4,4],[49,55.2,2,2]],jaw:{h:[25,54],pts:[[24,54,5,3.2],[34,51.6,4.5,3],[44,52.6,3.4,2.2],[48,54,1.4,1]]},
+  teeth:{x0:30,x1:47.5,y:55,z0:5,z1:2.8,len:3.2,ts:2.9},eye:[34,62.6,5.4,1.9],
+  leg:{hip:[-2,40,9],knee:[8,25],ankle:[-3,11],ball:[3,1.5],r:[8.6,4.8,3.1,2.6],toe:7,claw:true},
+  arm:{sh:[16,42,8],el:[19,38],hand:[21,38],r:[2.4,2],claws:2,cl:1.8},
+  extra:m=>{const hc=col3(SP.carno.col.horn);for(const s of[1,-1]){m.cone("bone","head",[30,67,s*4],[24,76,s*7.5],2.4,hc,7)}
+   const os=m.c.dark.clone().multiplyScalar(.7);for(let i=0;i<9;i++)for(const s of[1,-1]){const x=-26+i*6,a=m.at(x);m.ell("skin",m.boneX(x),[x,a.y+a.h*.55,s*a.w*.75],[1.6,1.2,1.2],os,null,6)}}}),
+ tri:()=>quad("tri",{open:.3,
+  body:[[-60,30,.5,.5],[-48,34,4,4],[-33,38,9,8.4],[-18,40,16,15],[-2,41,20,19],[14,40,17,16],[24,38,12,12],[30,38,10,10]],tail:[3,2,1],neck:[5,6],
+  skull:[[26,40,9,10],[36,38,8.6,9],[46,33.5,6,7],[53,28,3.6,4],[56.5,25,1.5,1.5]],jaw:{h:[32,30],pts:[[31,30,6,3],[42,26,4.5,3],[50,24,2.6,1.7],[53.5,24,1,1]]},eye:[37,42,7.4,1.8],
+  back:{hip:[-16,32,12],knee:[-14,16],foot:[-17,0],r:[11,7,6]},front:{hip:[20,30,11],knee:[22,14],foot:[21,0],r:[9,6.5,5.5]},
+  extra:m=>{const c=SP.tri.col,f0=col3(c.frill2),f1=col3(c.frill),hc=col3(c.horn);
+   m.ell("acc","head",[22,51,0],[2.6,22,22],null,[0,0,.4],24,(x,y,z)=>{const r=Math.hypot(y,z);return mixC(f0,f1,r*1.1).multiplyScalar(x>0?1:.75)});
+   for(let i=0;i<13;i++){const a=-1.35+i*(2.7/12),y=Math.cos(a)*21.5,z=Math.sin(a)*21.5;const px=22-Math.sin(.4)*y,py=51+Math.cos(.4)*y;m.cone("bone","head",[px+.5,py,z],[px-Math.sin(.4)*3.5,py+Math.cos(.4)*3.5,z*1.12],1.5,col3("#e7dcc0"),5)}
+   for(const s of[1,-1])m.cone("bone","head",[36,46,s*5],[62,64,s*9],2.5,hc,8);
+   m.cone("bone","head",[49,37,0],[52,46,0],1.7,hc,7);m.cone("bone","head",[53.5,30,0],[58,24,0],2.2,col3("#2b261d"),6)}}),
+ anky:()=>quad("anky",{open:.3,
+  body:[[-56,26,.5,.5],[-46,28,3.5,3],[-34,30,7,6],[-21,30,18,13],[-2,31,25,15],[18,30,20,13],[28,30,12,10],[32,30,10,8]],tail:[3,2,1],neck:[5,6],
+  skull:[[30,30,10,8],[38,29,9.6,7],[44,27,7,5],[47.5,25,4,3]],jaw:{h:[34,24],pts:[[33,24,7,2.5],[44,22,4,2],[46.5,22.5,2,1]]},eye:[37,31.5,8.6,1.6],
+  back:{hip:[-16,22,14],knee:[-14,11],foot:[-16,0],r:[8,6,5]},front:{hip:[18,22,13],knee:[20,11],foot:[20,0],r:[7,5.5,4.5]},
+  extra:m=>{const c=SP.anky.col,ar=col3(c.armor),ah=col3(c.armorHi),hc=col3(c.horn);
+   m.ell("acc","tail2",[-60,26,0],[9,6,9.5],null,null,14,(x,y,z)=>mixC(ar,ah,y*.6+.4));
+   for(const s of[1,-1])m.ell("acc","tail2",[-60,26,s*7],[4,3.6,4],ar,null,8);
+   for(let x=-30;x<=28;x+=6.2){const a=m.at(x),bn=m.boneX(x);for(const an of[0,.55,-.55,1.05,-1.05,1.45,-1.45]){const y=a.y+a.h*Math.cos(an),z=a.w*Math.sin(an),ny=Math.cos(an),nz=Math.sin(an),sz=Math.abs(an)>1.4?3.6:2.4;
+     if(Math.abs(an)>1.4)m.cone("bone",bn,[x,y,z],[x-1,y+ny*5.5-1,z+nz*5.5],2,hc,6);else m.cone("acc",bn,[x,y-ny*.5,z-nz*.5],[x,y+ny*sz,z+nz*sz],2.6,mixC(ar,ah,.3+.3*Math.random()),6)}}
+   for(const s of[1,-1]){m.cone("bone","head",[30,35,s*8],[23,40,s*12],2.2,hc,6);m.cone("bone","head",[38,32,s*9],[37,30,s*14],1.8,hc,6)}}}),
+ stego:()=>quad("stego",{open:.3,
+  body:[[-68,30,.5,.5],[-55,34,3,3],[-41,40,7,6],[-24,46,14,14],[-6,46,16,18],[12,40,13,13],[22,32,7,7],[30,27,5,5]],tail:[3,2,1],neck:[5,6],
+  skull:[[28,28,4.6,4.6],[36,25,4,4],[44,23,2.5,2.6],[47.5,22,1,1]],jaw:{h:[31,23],pts:[[30,23,3.5,1.6],[42,21,2.2,1.2],[45.5,21.5,.8,.6]]},eye:[37,26.4,3.8,1.3],
+  back:{hip:[-16,36,11],knee:[-12,18],foot:[-15,0],r:[11,7,5.5]},front:{hip:[18,26,10],knee:[20,12],foot:[20,0],r:[7,5,4.5]},
+  extra:m=>{const c=SP.stego.col,p0=col3(c.plate),p1=col3(c.plate2),hc=col3(c.horn);
+   for(let i=0;i<10;i++){const xc=-48+i*7,z=i%2?1.6:-1.6,h=7+16*Math.sin(Math.PI*(i+.6)/10.6),w=3.8+1.6*Math.sin(Math.PI*(i+.5)/10);fsheet(m,xc-w,xc+w,h,w,z,p0,p1,null,-1.5)}
+   for(const s of[1,-1]){m.cone("bone","tail2",[-58,33,s*1.5],[-68,43,s*9],1.6,hc,6);m.cone("bone","tail2",[-63,32,s*1.4],[-72,38,s*10],1.5,hc,6)}}}),
+ brachio:()=>quad("brachio",{open:.25,
+  body:[[-66,44,.5,.5],[-53,48,3,3],[-39,54,7,7],[-22,58,15,14],[-6,62,17,17],[8,70,12,12],[16,84,7.5,7.5],[23,104,5.6,5.6],[29,122,4.6,4.6],[32,128,4,4]],tail:[3,2,1],neck:[5,7],
+  skull:[[30,129,4.4,4.6],[36,131,5,5],[42,129,3.6,3.4],[45.5,127,2,2]],jaw:{h:[36,126],pts:[[35,126,3.4,1.5],[44,125.6,1.8,1]]},eye:[35.5,131.4,4.5,1.3],
+  back:{hip:[-18,48,12],knee:[-16,24],foot:[-18,0],r:[12,8,6.6]},front:{hip:[16,58,11],knee:[18,30],foot:[18,0],r:[11,7.6,6.6]},
+  extra:m=>{m.ell("skin","head",[33,134.5,0],[4.6,3.2,3.6],m.c.mid,null,10)}}),
+ para:()=>biped("para",{stripe:false,open:.35,
+  body:[[-70,46,.4,.4],[-55,48,3,3],[-39,47,6,6],[-22,46,10,10],[-8,45,13,13],[4,45,14,13],[14,50,9,9],[20,60,6,6],[24,66,5,5]],tail:[4,3,2],neck:[6,7],
+  skull:[[22,67,4.6,5],[30,68,5,5],[38,64,4.4,3.6],[44,59.4,4,2.2],[45.6,58.4,2.4,1]],jaw:{h:[26,61],pts:[[25,61,4,2],[36,58,3.2,1.6],[42,57,2.8,1],[43.6,57,1.2,.5]]},eye:[27,66.4,4.5,1.6],
+  leg:{hip:[-4,38,9],knee:[5,24],ankle:[-4,10],ball:[2,1],r:[9,5,3.3,2.8],toe:6,claw:false},
+  arm:{sh:[14,43,7],el:[20,31],hand:[22,16],r:[3,2.4],claws:3,cl:2},
+  extra:m=>{const c0=col3(SP.para.col.crest),c1=col3(SP.para.col.crest2);m.loft("acc",[[27,69,0,1.8,2.4],[20,74,0,2.6,3],[10,79,0,2.6,2.8],[0,83,0,2.2,2.2],[-4,84,0,.8,.8]],{bone:"head",rs:10,color:(oy,p)=>mixC(c0,c1,(27-p[0])/30)})}}),
+ pachy:()=>biped("pachy",{stripe:false,open:.35,
+  body:[[-64,44,.4,.4],[-51,46,3,3],[-37,46,5.6,5.6],[-22,44,8.6,8.6],[-8,43,11,11],[2,42,12,12.6],[12,46,8.6,8.6],[18,54,6,6],[22,56,5.6,5.6]],tail:[4,3,2],neck:[6,7],
+  skull:[[20,54,5,5],[28,54,6,5.6],[36,52,4.6,4],[41,49,2.6,2.4],[43.4,48,1,1]],jaw:{h:[24,49],pts:[[23,49,4,2],[34,47,3,1.6],[40,47,1.6,1]]},eye:[32,55.6,5.2,1.6],
+  leg:{hip:[-4,36,8],knee:[5,23],ankle:[-4,10],ball:[2,1],r:[8,4.6,3,2.5],toe:5,claw:false},
+  arm:{sh:[12,41,6],el:[18,33],hand:[22,33],r:[2.4,1.8],claws:3,cl:1.6},
+  extra:m=>{const c=SP.pachy.col,d0=col3(c.dome),d1=col3(c.dome2),hc=col3(c.horn);
+   m.ell("acc","head",[28,57.5,0],[10,8.4,7.4],null,null,18,(x,y,z)=>mixC(d1,d0,y*.8+.3));
+   for(let i=0;i<7;i++){const an=Math.PI*.95+i*.18;for(const s of[1,-1])m.cone("bone","head",[28+Math.cos(an)*9,56+Math.sin(an)*-6,s*5.5],[28+Math.cos(an)*12,56+Math.sin(an)*-6+1.5,s*7.4],1.1,hc,5)}
+   for(const s of[1,-1])for(const [x,y] of [[38,52],[41,50]])m.cone("bone","head",[x,y,s*3.6],[x+.6,y+2.2,s*4.6],.9,hc,5)}}),
+ igu:()=>biped("igu",{stripe:false,open:.35,
+  body:[[-70,38,.4,.4],[-55,42,3,3],[-39,46,7,7],[-22,47,11,11],[-6,45,14,14],[8,43,13,13],[18,46,9,9],[26,50,7,7],[30,52,6,6]],tail:[4,3,2],neck:[6,7],
+  skull:[[28,52,5.6,6],[36,53,5.6,5.6],[44,50,4,3.8],[50,47,3,2.4],[52.4,46,1.4,1]],jaw:{h:[31,46],pts:[[30,46,4.6,2],[42,44,3.4,1.6],[49,44.6,1.6,1]]},eye:[36,54.4,5.3,1.7],
+  leg:{hip:[-6,36,10],knee:[4,22],ankle:[-6,10],ball:[1,1],r:[10,6,3.8,3.2],toe:6.5,claw:false},
+  arm:{sh:[20,38,9],el:[25,20],hand:[28,3],r:[4.4,3.4],claws:3,cl:2},
+  extra:m=>{for(const s of[1,-1])m.cone("bone","arm"+(s>0?"L":"R"),[27,9,s*10.6],[33,18,s*11.2],1.3,m.hornCol,6)}}),
+ theri:()=>biped("theri",{stripe:false,open:.3,
+  body:[[-48,40,.4,.4],[-37,42,3,3],[-25,40,7,7],[-12,42,14,14],[-2,46,17,18],[6,56,12,12],[12,72,7,7],[18,86,5,5],[24,92,4,4]],tail:[3,2,1],neck:[5,7],
+  skull:[[22,93,3.8,4],[29,95,3.6,3.6],[35,92,2.4,2.2],[37.6,91,1,1]],jaw:{h:[25,89.6],pts:[[24,89.6,3,1.5],[34,90.2,1.6,.8]]},eye:[27,94.6,3.4,1.3],
+  leg:{hip:[0,36,10],knee:[8,22],ankle:[-2,10],ball:[3,1],r:[10,5.6,3.4,3],toe:6,claw:false},
+  arm:{sh:[8,58,10],el:[14,50],hand:[22,38],r:[4.6,3.6],claws:3,cl:18,big:true},
+  extra:m=>{const f=col3(SP.theri.col.feather);for(let x=-44;x<12;x+=3.4){const a=m.at(x);for(const an of[0,.6,-.6,1.1,-1.1])m.cone("skin",m.boneX(x),[x,a.y+a.h*Math.cos(an)*.85,a.w*Math.sin(an)*.85],[x-4.5,a.y+a.h*Math.cos(an)+2,a.w*Math.sin(an)*1.15],1.5,f,4)}}}),
+ galli:()=>biped("galli",{stripe:true,open:.3,
+  body:[[-60,52,.4,.4],[-47,53,2.6,2.6],[-31,51,4.6,4.6],[-16,49,7,7],[-4,48,9.6,9.6],[6,49,8,8],[14,60,4,4],[20,76,3,3],[24,84,2.6,2.6]],tail:[4,3,2],neck:[6,7],
+  skull:[[22,85,3,3.2],[28,86,3,3],[34,84,2,1.6],[39.4,82,1,.8]],jaw:{h:[25,82.6],pts:[[24,82.6,2.4,1.2],[37.6,81.8,1,.5]]},eye:[26,86.4,2.7,1.3],
+  leg:{hip:[-2,44,6],knee:[6,30],ankle:[-3,14],ball:[3,1],r:[6.6,3.2,1.9,1.6],toe:5,claw:false},
+  arm:{sh:[10,46,5],el:[15,40],hand:[19,40],r:[1.8,1.3],claws:3,cl:2.4},
+  extra:m=>{const f=col3(SP.galli.col.feather);for(let x=-56;x<10;x+=3.6){const a=m.at(x);m.cone("skin",m.boneX(x),[x,a.y+a.h*.7,0],[x-4,a.y+a.h+2.4,0],1,f,4)}}}),
+};
+
+/* ========================= textures ========================= */
+function canvasTex(sz,draw,srgb){const c=document.createElement("canvas");c.width=c.height=sz;draw(c.getContext("2d"),sz);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=4;if(srgb)t.colorSpace=THREE.SRGBColorSpace;return t}
+// scales: raised bumps for the bump map
+const scaleTex=canvasTex(256,(g,S)=>{g.fillStyle="#555";g.fillRect(0,0,S,S);const R=mulberry(99);
+  for(let row=0;row<16;row++)for(let c=0;c<16;c++){const x=c*16+(row%2?8:0)+R()*3,y=row*16+R()*3,r=6.4+R()*2.4;
+    const gr=g.createRadialGradient(x-1.5,y-1.5,1,x,y,r);gr.addColorStop(0,"#d8d8d8");gr.addColorStop(.7,"#8a8a8a");gr.addColorStop(1,"#444");g.fillStyle=gr;
+    for(const ox of[-S,0,S])for(const oy of[-S,0,S]){g.beginPath();g.ellipse(x+ox,y+oy,r,r*.85,0,0,TAU);g.fill()}}
+  for(let k=0;k<900;k++){g.fillStyle=`rgba(0,0,0,${R()*.25})`;g.beginPath();g.arc(R()*S,R()*S,R()*1.6+.4,0,TAU);g.fill()}});
+// fine ground grain (multiplies the ground colour)
+const grainTex=canvasTex(256,(g,S)=>{g.fillStyle="#fff";g.fillRect(0,0,S,S);const R=mulberry(42);
+  for(let k=0;k<5200;k++){const x=R()*S,y=R()*S,r=R()*1.8+.4;g.fillStyle=R()<.5?`rgba(255,250,235,${R()*.6})`:`rgba(0,0,0,${R()*.22})`;g.beginPath();g.arc(x,y,r,0,TAU);g.fill()}
+  for(let k=0;k<500;k++){const x=R()*S,y=R()*S;g.strokeStyle=`rgba(20,30,10,${R()*.25})`;g.lineWidth=1;g.beginPath();g.moveTo(x,y);g.lineTo(x+R()*5-2.5,y-3-R()*5);g.stroke()}});
+const glowTex=canvasTex(128,(g,S)=>{const gr=g.createRadialGradient(S/2,S/2,1,S/2,S/2,S/2);gr.addColorStop(0,"rgba(140,210,255,1)");gr.addColorStop(.35,"rgba(90,170,255,.45)");gr.addColorStop(1,"rgba(90,170,255,0)");g.fillStyle=gr;g.fillRect(0,0,S,S)},true);
+
+/* ========================= renderer, scene, camera ========================= */
+const glc=$("gl");
+const renderer=new THREE.WebGLRenderer({canvas:glc,antialias:true,powerPreference:"high-performance"});
+renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.3;
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+const scene=new THREE.Scene();
+const FOG=new THREE.Color("#8e9688");scene.background=FOG.clone();scene.fog=new THREE.Fog(FOG,1000,3000);
+const camera=new THREE.PerspectiveCamera(40,1,1,10000);
+const hemi=new THREE.HemisphereLight(0xcfe0f0,0x4a3c26,1.5);scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xfff0d8,2.9);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-.0004;scene.add(sun);scene.add(sun.target);
+const SUN=new THREE.Vector3(-.45,1,.38).normalize();
+const camT=new THREE.Vector3();let camL=len(1),camH=0;
+const EL=44*Math.PI/180;
+
+// trees and big plants turn see-through where they would hide your dinosaur
+const xray={uCam:{value:new THREE.Vector3()},uTgt:{value:new THREE.Vector3()},uR:{value:50}};
+function addXray(m){m.onBeforeCompile=sh=>{Object.assign(sh.uniforms,xray);
+  sh.vertexShader=sh.vertexShader.replace("#include <common>","#include <common>\nvarying vec3 vXW;").replace("#include <project_vertex>",
+    "#include <project_vertex>\n{vec4 xw=vec4(transformed,1.0);\n#ifdef USE_INSTANCING\nxw=instanceMatrix*xw;\n#endif\nvXW=(modelMatrix*xw).xyz;}");
+  sh.fragmentShader=sh.fragmentShader.replace("#include <common>","#include <common>\nvarying vec3 vXW;uniform vec3 uCam;uniform vec3 uTgt;uniform float uR;").replace("#include <clipping_planes_fragment>",
+    "#include <clipping_planes_fragment>\n{vec3 d=uTgt-uCam;float t=clamp(dot(vXW-uCam,d)/dot(d,d),0.0,1.0);float rr=uR*(0.4+0.6*t);float r=length(vXW-(uCam+d*t));\nif(t<0.96&&r<rr){float n=fract(sin(dot(floor(gl_FragCoord.xy),vec2(12.9898,78.233)))*43758.5453);if(n<1.0-smoothstep(rr*0.55,rr,r))discard;}}");};
+  m.customProgramCacheKey=()=>"xray"+(m.vertexColors?1:0)+(m.flatShading?1:0);return m}
+
+/* ========================= ground ========================= */
+// gentle hills, carved down where the lakes and rivers are (water surface is y=0)
+function heightAt(x,y){x=wrap(x);y=wrap(y);
+  const hill=6+130*smooth(.38,.9,fbm(x,y,4096,61))+90*smooth(.55,.95,rocky(x,y))+10*vnoise(x,y,512,63);
+  const w=waterAmt(x,y);return lerp(hill,-26,smooth(.36,.56,w))}
+const groundY=(x,y,L)=>Math.max(heightAt(x,y),-L*.16);
+const LODS=[512,1024,2048],SEG=[32,32,32];
+const lodFor=s=>s<=3?0:s<=6?1:2;
+const terrMat=new THREE.MeshStandardMaterial({vertexColors:true,map:grainTex,roughness:.96,metalness:0});
+const waterMat=new THREE.MeshStandardMaterial({color:0x2c6470,transparent:true,opacity:.6,roughness:.08,metalness:.15,depthWrite:false});
+const treeTrunkMat=addXray(new THREE.MeshStandardMaterial({color:0x4a3826,roughness:.95}));
+const treeLeafMat=addXray(new THREE.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:.9}));
+const rockMat=addXray(new THREE.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:.92,flatShading:true}));
+const grassMat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.95,side:THREE.DoubleSide});
+const boneMat=new THREE.MeshStandardMaterial({color:0xd8cdb2,roughness:.7});
+const lilyMat=new THREE.MeshStandardMaterial({color:0x3f7a3a,roughness:.6});
+const sRGB=c=>Math.pow(c/255,2.2);
+// unit deco geometry
+const DG=(()=>{
+  const conif=new Bk();const tr=(g,col)=>conif.add(g,0,col);
+  for(let k=0;k<5;k++){const g=new THREE.ConeGeometry(.24-k*.036,.24,9,1);g.translate(0,.38+k*.12,0);tr(g,col3(k%2?"#203a16":"#2b4a1e"))}
+  const trunk=new THREE.CylinderGeometry(.018,.032,.8,7);trunk.translate(0,.4,0);
+  const rock=new THREE.DodecahedronGeometry(1,1);{const P=rock.attributes.position,R=mulberry(5),cs=[];for(let v=0;v<P.count;v++){const x=P.getX(v),y=P.getY(v),z=P.getZ(v),hh=hashf(Math.round(x*50),Math.round(y*50),Math.round(z*50)),k=.82+hh*.36;P.setXYZ(v,x*k,y*k*.7,z*k);const c=.85+hh*.3;cs.push(.13*c,.12*c,.1*c)}rock.setAttribute("color",new THREE.Float32BufferAttribute(cs,3));rock.computeVertexNormals();rock.translate(0,.25,0)}
+  const tuft=new THREE.BufferGeometry();{const p=[];for(let k=0;k<5;k++){const a=k*1.26,c=Math.cos(a),s=Math.sin(a),lx=c*.35,lz=s*.35;p.push(-s*.08,0,c*.08, s*.08,0,-c*.08, lx,1,lz)}tuft.setAttribute("position",new THREE.Float32BufferAttribute(p,3));tuft.computeVertexNormals()}
+  const log=new THREE.CylinderGeometry(.09,.1,1,9);log.rotateZ(Math.PI/2);log.translate(0,.09,0);
+  const reed=new THREE.CylinderGeometry(.03,.04,1,5);reed.translate(0,.5,0);
+  const lily=new THREE.CircleGeometry(.5,10,.3,TAU-.5);lily.rotateX(-Math.PI/2);
+  const bones=new THREE.TorusGeometry(.3,.04,5,10,Math.PI);bones.rotateY(Math.PI/2);
+  return{crown:conif.geo(false),trunk,rock,tuft,log,reed,lily,bones}})();
+function decoFor512(i,j){ // same layout as the 2D version
+  const R=mulberry(i*7919+j*104729+17),deco=[];const bm=biome(wrap(i*CH+CH/2),wrap(j*CH+CH/2));
+  const add=(type,n,smin,smax)=>{for(let k=0;k<n;k++){const x=R()*CH,y=R()*CH,s=smin+R()*(smax-smin),f=R()<.5?-1:1,v=R()*1000|0;const w=waterAmt(wrap(i*CH+x),wrap(j*CH+y));if(w>.4)continue;deco.push({type,x,y,s,f,v})}};
+  for(let k=0;k<18;k++){const x=R()*CH,y=R()*CH;const w=waterAmt(wrap(i*CH+x),wrap(j*CH+y));
+    if(w>.6){if(R()<.25&&bm==="swamp")deco.push({type:"lily",x,y,s:8+R()*18,f:1,v:R()*1000|0})}else if(w>.42&&w<.5&&R()<.5)deco.push({type:"reed",x,y,s:14+R()*12,f:1,v:R()*1000|0})}
+  if(bm==="meadow"){add("tuft",34,8,16);add("fern",6,14,26);add("rock",2,8,16)}
+  else if(bm==="forest"){add("tuft",14,8,14);add("fern",10,16,30);add("log",2,60,110);add("tree",3,520,820)}
+  else if(bm==="swamp"){add("reed",22,14,26);add("tuft",10,8,14);add("tree",1,420,600)}
+  else if(bm==="dry"){add("dtuft",24,7,13);add("rock",4,8,22);add("bones",R()<.25?1:0,30,46)}
+  else if(bm==="desert"){add("rock",6,8,26);add("bones",R()<.4?1:0,30,50);add("dtuft",6,6,10)}
+  else{add("rock",10,10,30);add("boulder",3,90,180);add("dtuft",8,6,10)}
+  return deco}
+const chunks3=new Map();
+function genChunk3(lod,i,j){
+  const CS=LODS[lod],n=SEG[lod],X0=i*CS,Y0=j*CS,st=CS/n,R1=n+1;
+  const pos=new Float32Array(R1*R1*3),col=new Float32Array(R1*R1*3),uv=new Float32Array(R1*R1*2),idx=[];let wet=false;
+  for(let b=0;b<=n;b++)for(let a=0;a<=n;a++){const v=b*R1+a,x=a*st,y=b*st,wx=wrap(X0+x),wy=wrap(Y0+y);
+    const h=heightAt(wx,wy);if(h<2)wet=true;pos[v*3]=x;pos[v*3+1]=h;pos[v*3+2]=y;
+    const c=groundRGB(wx,wy),nz=(hash2(a+i*97,b+j*89,3)-.5)*8;col[v*3]=sRGB(c[0]+nz);col[v*3+1]=sRGB(c[1]+nz);col[v*3+2]=sRGB(c[2]+nz);
+    uv[v*2]=(X0+x)/160;uv[v*2+1]=(Y0+y)/160}
+  for(let b=0;b<n;b++)for(let a=0;a<n;a++){const p=b*R1+a,q=p+R1;idx.push(p,q,p+1,p+1,q,q+1)}
+  const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.BufferAttribute(pos,3));g.setAttribute("color",new THREE.BufferAttribute(col,3));g.setAttribute("uv",new THREE.BufferAttribute(uv,2));
+  g.setIndex(idx);g.computeVertexNormals();
+  const grp=new THREE.Group();const mesh=new THREE.Mesh(g,terrMat);mesh.receiveShadow=true;grp.add(mesh);
+  if(wet){const wg=new THREE.PlaneGeometry(CS,CS);wg.rotateX(-Math.PI/2);wg.translate(CS/2,0,CS/2);const wm=new THREE.Mesh(wg,waterMat);wm.renderOrder=2;grp.add(wm);grp.userData.wg=wg}
+  // decorations, instanced per type
+  const minS=lod?CS*.022:0,per=CS/CH,lists={};
+  for(let b=0;b<per;b++)for(let a=0;a<per;a++){const si=i*per+a,sj=j*per+b;for(const d of decoFor512(((si%NC)+NC)%NC,((sj%NC)+NC)%NC)){
+    if(d.s<minS&&d.type!=="tree")continue;(lists[d.type]||(lists[d.type]=[])).push({...d,x:d.x+a*CH,y:d.y+b*CH})}}
+  const M=new THREE.Matrix4(),Q=new THREE.Quaternion(),Sc=new THREE.Vector3(),Ps=new THREE.Vector3(),E=new THREE.Euler(),Cc=new THREE.Color();
+  const inst=(geo,mat,arr,fn,shadow)=>{if(!arr||!arr.length)return;const im=new THREE.InstancedMesh(geo,mat,arr.length);
+    arr.forEach((d,k)=>{const hx=heightAt(wrap(X0+d.x),wrap(Y0+d.y));fn(d,hx);M.compose(Ps,Q,Sc);im.setMatrixAt(k,M);if(im.userData.col)im.setColorAt(k,Cc)});
+    im.castShadow=!!shadow;im.receiveShadow=true;grp.add(im);return im};
+  const R=mulberry(i*31+j*17+lod);
+  const base=(d,h,s,yo=0)=>{Ps.set(d.x,h+yo,d.y);E.set(0,R()*TAU,0);Q.setFromEuler(E);Sc.set(s,s,s)};
+  inst(DG.trunk,treeTrunkMat,lists.tree,(d,h)=>{base(d,h-4,d.s*.42)},true);
+  inst(DG.crown,treeLeafMat,lists.tree,(d,h)=>{base(d,h-4,d.s*.42)},true);
+  inst(DG.rock,rockMat,lists.boulder,(d,h)=>{base(d,h-d.s*.08,d.s*.42)},true);
+  inst(DG.rock,rockMat,lists.rock,(d,h)=>{base(d,h-d.s*.05,d.s*.45)},lod===0);
+  inst(DG.log,treeTrunkMat,lists.log,(d,h)=>{base(d,h-1,d.s)},true);
+  inst(DG.bones,boneMat,lists.bones,(d,h)=>{base(d,h,d.s*.6)},false);
+  inst(DG.lily,lilyMat,lists.lily,(d,h)=>{base(d,0,d.s);Ps.y=.6},false);
+  const g2=[...(lists.tuft||[]).map(d=>({...d,c:d.v%2?"#5f8a34":"#3f6a24"})),...(lists.dtuft||[]).map(d=>({...d,c:d.v%2?"#a99a5c":"#857645"})),...(lists.fern||[]).map(d=>({...d,c:"#3a6624",s:d.s*.8})),...(lists.reed||[]).map(d=>({...d,c:"#6f7a3c"}))];
+  if(g2.length){const im=new THREE.InstancedMesh(DG.tuft,grassMat,g2.length);g2.forEach((d,k)=>{const h=heightAt(wrap(X0+d.x),wrap(Y0+d.y));base(d,h,1);Sc.set(d.s*.9,d.s,d.s*.9);M.compose(Ps,Q,Sc);im.setMatrixAt(k,M);Cc.set(d.c);im.setColorAt(k,Cc)});grp.add(im)}
+  const ch3={grp,g,lod,i,j};chunks3.set(lod+":"+i+":"+j,ch3);
+  if(chunks3.size>260){for(const [k,c] of chunks3){if(c.used)continue;dropChunk(k,c);if(chunks3.size<=220)break}}
+  return ch3}
+function dropChunk(k,c){scene.remove(c.grp);c.g.dispose();if(c.grp.userData.wg)c.grp.userData.wg.dispose();c.grp.traverse(o=>{if(o.isInstancedMesh)o.dispose()});chunks3.delete(k)}
+let lastLod=0;
+function updateTerrain(D){
+  const lod=lodFor(me.size),CS=LODS[lod],NCl=W/CS;
+  const x0=-1.9*D,x1=1.9*D,z0=-2.4*D,z1=1.05*D;
+  const i0=Math.floor((cam.x+x0)/CS),i1=Math.floor((cam.x+x1)/CS),j0=Math.floor((cam.y+z0)/CS),j1=Math.floor((cam.y+z1)/CS);
+  for(const c of chunks3.values())c.used=false;
+  let budget=game.state==="play"?3:1,missing=0;const want=[];
+  for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++)want.push([i,j,Math.hypot((i+.5)*CS-cam.x,(j+.5)*CS-cam.y)]);
+  want.sort((a,b)=>a[2]-b[2]);
+  for(const [i,j] of want){const im=((i%NCl)+NCl)%NCl,jm=((j%NCl)+NCl)%NCl;let c=chunks3.get(lod+":"+im+":"+jm);
+    if(!c){if(budget-->0)c=genChunk3(lod,im,jm);else{missing++;continue}}
+    c.used=true;if(!c.grp.parent)scene.add(c.grp);c.grp.position.set(i*CS-cam.x,0,j*CS-cam.y)}
+  // while the new detail level is still loading, keep showing the old one
+  if(missing&&lastLod!==lod){const PS=LODS[lastLod],NP=W/PS;
+    for(let j=Math.floor((cam.y+z0)/PS);j<=Math.floor((cam.y+z1)/PS);j++)for(let i=Math.floor((cam.x+x0)/PS);i<=Math.floor((cam.x+x1)/PS);i++){
+      const c=chunks3.get(lastLod+":"+(((i%NP)+NP)%NP)+":"+(((j%NP)+NP)%NP));if(c){c.used=true;if(!c.grp.parent)scene.add(c.grp);c.grp.position.set(i*PS-cam.x,-.5,j*PS-cam.y)}}}
+  else lastLod=lod;
+  for(const c of chunks3.values())if(!c.used&&c.grp.parent)scene.remove(c.grp);
+}
+
+/* ========================= dinosaur instances ========================= */
+const TPL={};
+function tpl(sp){if(TPL[sp])return TPL[sp];const T=SPEC[sp]();
+  const bump=.9;
+  T.mats={skin:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.78,metalness:0,bumpMap:scaleTex,bumpScale:bump}),
+    bone:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.45}),
+    eye:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.15,emissive:new THREE.Color(0xff9a20),emissiveIntensity:.55}),
+    dark:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.35}),
+    acc:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.7,side:THREE.DoubleSide,bumpMap:scaleTex,bumpScale:bump*.5})};
+  T.inv=T.bones.map(b=>new THREE.Matrix4().makeTranslation(-b.p[0],-b.p[1],-b.p[2]));
+  const bb=T.geos.skin.boundingBox;T.top=bb.max.y;T.box=bb;
+  return TPL[sp]=T}
+const pools={},liveInst=new Set();let stamp=0;
+const ringGeo=(()=>{const g=new THREE.RingGeometry(.86,1,48);g.rotateX(-Math.PI/2);return g})();
+const diskGeo=(()=>{const g=new THREE.CircleGeometry(1,40);g.rotateX(-Math.PI/2);return g})();
+const windMat=new THREE.MeshBasicMaterial({color:0xdc1e0a,transparent:true,opacity:.35,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2});
+function makeInst(sp){
+  const T=tpl(sp),g=new THREE.Group(),inner=new THREE.Group();g.add(inner);
+  const bones=T.bones.map(()=>new THREE.Bone());
+  T.bones.forEach((b,i)=>{const o=bones[i];o.name=b.name;if(b.parent<0){o.position.set(...b.p);inner.add(o)}else{const pp=T.bones[b.parent].p;o.position.set(b.p[0]-pp[0],b.p[1]-pp[1],b.p[2]-pp[2]);bones[b.parent].add(o)}});
+  const skel=new THREE.Skeleton(bones,T.inv);const mats={},meshes=[];
+  for(const k in T.geos){if(!T.geos[k])continue;const m=T.mats[k].clone();mats[k]=m;const mesh=new THREE.SkinnedMesh(T.geos[k],m);mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;mesh.bind(skel,new THREE.Matrix4());inner.add(mesh);meshes.push(mesh)}
+  const disk=new THREE.Mesh(diskGeo,windMat);disk.visible=false;disk.position.y=.6;disk.scale.set(62,1,62);g.add(disk);
+  const bn={};for(const b of T.bones)bn[b.name]=bones[T.B[b.name]];
+  const rest={};for(const k in bn)rest[k]=bn[k].position.clone();
+  return{sp,T,g,inner,bn,rest,mats,meshes,disk,owner:null,fade:1,op:1}}
+function getInst(sp,owner){const p=pools[sp]||(pools[sp]=[]);const I=p.pop()||makeInst(sp);I.owner=owner;I.stamp=stamp;I.fade=0;scene.add(I.g);liveInst.add(I);I.g.visible=true;return I}
+function relInst(I){scene.remove(I.g);liveInst.delete(I);if(I.owner&&I.owner._i===I)I.owner._i=null;I.owner=null;(pools[I.sp]||(pools[I.sp]=[])).push(I)}
+function setOpacity(I,a){if(Math.abs(I.op-a)<.01)return;const tr=a<.999;for(const k in I.mats){const m=I.mats[k];if(m.transparent!==tr){m.transparent=tr;m.needsUpdate=true}m.opacity=a;m.depthWrite=!tr||k!=="acc"}I.op=a}
+const angTo=(a,b,k)=>{let d=((b-a+Math.PI*3)%TAU)-Math.PI;return a+d*clamp(k,0,1)};
+// put a dinosaur in its pose for this frame. a = {ph,mv,jaw,atk,angry}
+function pose(I,a,t){
+  const B=I.bn,R=I.rest,T=I.T,ph=a.ph,mv=a.mv;
+  B.body.position.y=R.body.y+(T.kind==="biped"?Math.abs(Math.sin(ph))*1.6:Math.abs(Math.sin(ph))*.8)*mv+Math.sin(t*1.7)*.35;
+  B.body.rotation.z=Math.sin(ph*2)*.015*mv;B.body.rotation.x=Math.sin(ph)*.03*mv;
+  for(let k=0;k<3;k++){const tb=B["tail"+k];tb.rotation.y=Math.sin(t*1.5+ph*.5-k*.8)*(.06+.07*mv)*(1+k*.4)+(I.sp==="anky"?Math.sin(a.atk*Math.PI)*.5:0);tb.rotation.z=Math.sin(ph*2-k)*.03*mv-.015}
+  const look=a.angry?-.1:0;
+  B.neck0.rotation.z=Math.sin(ph*2)*.03*mv+Math.sin(t*1.1)*.02+look*.6-a.atk*.22;B.neck1.rotation.z=look*.4-a.atk*.1;
+  B.neck0.rotation.y=Math.sin(t*.6+I.g.id)*.06*(1-mv);
+  B.head.rotation.z=look*.5+(a.angry?Math.sin(t*9)*.015:0);
+  B.jaw.rotation.z=-a.jaw*T.open;
+  if(T.kind==="biped"){
+    for(const [s,nm] of [[0,"L"],[Math.PI,"R"]]){const p=ph+s,sw=Math.sin(p)*.6*mv,lift=Math.max(0,Math.cos(p))*mv;
+      B["thigh"+nm].rotation.z=sw+lift*.3;B["shin"+nm].rotation.z=-lift*.85;B["foot"+nm].rotation.z=-(sw+lift*.3-lift*.85)-lift*.35;
+      if(B["arm"+nm])B["arm"+nm].rotation.z=Math.sin(p)*.12*mv+a.atk*.7+(a.angry?.15:0)}
+  }else{
+    for(const [s,nm] of [[0,"L"],[Math.PI,"R"]]){const pb=ph+s,pf=ph+s+Math.PI;
+      B["thigh"+nm].rotation.z=Math.sin(pb)*.42*mv;B["shin"+nm].rotation.z=-Math.max(0,Math.cos(pb))*.6*mv;
+      B["fthigh"+nm].rotation.z=Math.sin(pf)*.38*mv;B["fshin"+nm].rotation.z=-Math.max(0,Math.cos(pf))*.55*mv}}
+}
+// place an instance in the world: x,y world spot, L body length, yaw heading
+function place(I,x,y,L,yaw,lift){const X=wd(x-cam.x),Z=wd(y-cam.y);I.g.position.set(X,groundY(x,y,L)+(lift||0),Z);I.g.scale.setScalar(L/100);I.g.rotation.y=-yaw}
+
+/* ========================= plants, fish, egg (static models) ========================= */
+const plantGeo=(()=>{
+  const frond=(bk,x0,y0,ang,len,droop,w,c0,c1)=>{const pts=[];for(let k=0;k<=4;k++){const t=k/4;pts.push([t*len,y0+Math.sin(t*Math.PI*.9)*len*.25-droop*t*t*len,0,w*(1-t*.85),.5])}
+    const g=loftGeo(pts,{rs:4,sub:2,color:(oy,p)=>mixC(c0,c1,p[0]/len)});g.rotateY(ang);g.translate(x0,0,0);bk.add(g)};
+  const T=[];const L0=col3("#4f7a2c"),L1=col3("#6d9a3a"),Br=col3("#5a4630"),Dk=col3("#2c4d1f");
+  {const b=new Bk();for(let i=0;i<9;i++)frond(b,0,2,i*.7+.2,60+(i%3)*10,-.2,6,L0,L1);T.push(b.geo(false))} // fern clump
+  {const b=new Bk();
+    const tr=new THREE.CylinderGeometry(6.5,8,34,9);tr.translate(0,17,0);b.add(tr,0,Br);
+    for(let i=0;i<11;i++){const g=loftGeo([[0,34,0,1,.5],[18,44,0,6,.5],[38,40,0,5,.5],[52,28,0,1,.5]],{rs:4,sub:2,color:(oy,p)=>mixC(L0,L1,p[0]/52)});g.rotateY(i*.58);b.add(g)}T.push(b.geo(false))} // cycad
+  {const b=new Bk();const tr=new THREE.CylinderGeometry(3.5,5,76,8);tr.translate(0,38,0);b.add(tr,0,col3("#4a3a28"));
+    for(let i=0;i<12;i++){const g=loftGeo([[0,74,0,1,.5],[20,90,0,6,.5],[42,84,0,5,.5],[56,66,0,1,.5]],{rs:4,sub:2,color:(oy,p)=>mixC(L0,L1,p[0]/56)});g.rotateY(i*.53);b.add(g)}T.push(b.geo(false))} // tree fern
+  {const b=new Bk();const tr=new THREE.CylinderGeometry(4,6,60,8);tr.translate(0,30,0);b.add(tr,0,col3("#3e2f20"));
+    for(const [x,y,z,r,c] of [[-14,64,6,22,"#2f5420"],[16,66,-6,22,"#2f5420"],[0,80,0,26,"#4f7a2c"],[-10,88,-10,16,"#5c8b36"],[12,86,10,17,"#5c8b36"],[2,70,18,18,"#3f6a26"]]){const g=new THREE.IcosahedronGeometry(r,1);g.translate(x,y,z);b.add(g,0,col3(c))}
+    for(let i=0;i<10;i++){const g=new THREE.SphereGeometry(2.2,5,4);const a=i*2.4;g.translate(Math.cos(a)*22,74+((i*37)%20),Math.sin(a)*22);b.add(g,0,col3("#e9d6e8"))}T.push(b.geo(false))} // broadleaf
+  {const b=new Bk();const tr=new THREE.CylinderGeometry(3,5,94,8);tr.translate(0,47,0);b.add(tr,0,col3("#3a2a1a"));
+    for(let k=0;k<5;k++){const g=new THREE.ConeGeometry(34-k*6,20,10);g.translate(0,44+k*15,0);b.add(g,0,col3(k%2?"#2c4d1f":"#4f7a2c"))}const g=new THREE.SphereGeometry(14,8,6);g.scale(1,.7,1);g.translate(0,118,0);b.add(g,0,Dk);T.push(b.geo(false))} // conifer
+  return T})();
+const plantMats=["#ffffff","#d8e8c8","#f0f6d8","#c8d8b8"].map(c=>addXray(new THREE.MeshStandardMaterial({color:c,vertexColors:true,roughness:.85,side:THREE.DoubleSide})));
+const plantKind=s=>s<=2?0:s<=4?1:s<=6?2:s<=8?3:4;
+const fishGeos=[["#8aa6a8","#d8e4e0"],["#6f7f5a","#c8c89a"],["#7a6a8a","#d8cce0"],["#5a7a8a","#c0dce4"]].map(([a,b])=>{const ca=col3(a),cb=col3(b),bk=new Bk();
+  bk.add(loftGeo([[-40,0,0,1,1],[-30,0,0,4,6],[-10,0,0,9,14],[10,0,0,9,15],[30,-1,0,6,9],[40,-1,0,1.5,2]],{rs:10,color:oy=>mixC(cb,ca,oy*.5+.5)}));
+  bk.add(finGeo(-56,-36,4,x=>[x,0,0],x=>[x-4,(x+36)*-.9,0],v=>ca),0);bk.add(finGeo(-56,-36,4,x=>[x,0,0],x=>[x-4,(x+36)*.9,0],v=>ca),0);
+  bk.add(finGeo(-10,12,4,x=>[x,12,0],x=>[x-4,12+8*Math.sin((x+10)/22*Math.PI),0],v=>ca),0);
+  const e=new THREE.SphereGeometry(2.6,8,6);e.translate(28,2,5.5);bk.add(e,0,col3("#0c0c0c"));const e2=e.clone();e2.translate(0,0,-11);bk.add(e2,0,col3("#0c0c0c"));return bk.geo(false)});
+const fishMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.3,metalness:.2,side:THREE.DoubleSide});
+const eggMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.35,emissive:0x2266cc,emissiveIntensity:.45});
+const eggGeo=(()=>{const g=new THREE.SphereGeometry(1,24,18);g.scale(.46,.62,.46);g.translate(0,.62,0);const P=g.attributes.position,cs=[];const R=mulberry(8);
+  for(let v=0;v<P.count;v++){const y=P.getY(v);let c=mixC(col3("#1d5fae"),col3("#bfe6ff"),y/1.24);if(R()<.06)c=col3("#143d7a");cs.push(c.r,c.g,c.b)}g.setAttribute("color",new THREE.Float32BufferAttribute(cs,3));return g})();
+const eggMesh=new THREE.Mesh(eggGeo,eggMat);eggMesh.castShadow=true;eggMesh.visible=false;scene.add(eggMesh);
+const eggGlow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true}));eggGlow.visible=false;scene.add(eggGlow);
+const meRing=new THREE.Mesh(ringGeo,new THREE.MeshBasicMaterial({color:0x78c8ff,transparent:true,opacity:.6,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2}));scene.add(meRing);
+const tgtRing=new THREE.Mesh(ringGeo,new THREE.MeshBasicMaterial({color:0xffd278,transparent:true,opacity:.85,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2}));scene.add(tgtRing);
+const statics=new Map(); // entity -> mesh for plants and fish
+function staticFor(o,make){let m=o._s;if(!m){m=make();o._s=m;scene.add(m);statics.set(o,m)}m.userData.stamp=stamp;return m}
+
+/* ========================= sound ========================= */
+let AC=null,NB=null;
+function audio(){if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)();NB=AC.createBuffer(1,AC.sampleRate,AC.sampleRate);const d=NB.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1}catch(e){AC=null}}if(AC&&AC.state==="suspended")AC.resume()}
+function env(g,t,peak,a,dur){g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(peak,t+a);g.gain.exponentialRampToValueAtTime(.0001,t+dur)}
+function roarSfx(size,vol){if(!AC||vol<.03)return;const t=AC.currentTime,dur=.7+size*.05;
+  const n=AC.createBufferSource();n.buffer=NB;const f=AC.createBiquadFilter();f.type="lowpass";f.frequency.setValueAtTime(1100-size*60,t);f.frequency.exponentialRampToValueAtTime(160,t+dur);
+  const g=AC.createGain();env(g,t,.45*vol,.12,dur);n.connect(f).connect(g).connect(AC.destination);n.start(t);n.stop(t+dur);
+  const o=AC.createOscillator();o.type="sawtooth";o.frequency.setValueAtTime(150-size*9,t);o.frequency.exponentialRampToValueAtTime(Math.max(28,60-size*3),t+dur);
+  const og=AC.createGain();env(og,t,.22*vol,.1,dur);const of=AC.createBiquadFilter();of.type="lowpass";of.frequency.value=600;o.connect(of).connect(og).connect(AC.destination);o.start(t);o.stop(t+dur)}
+function blip(type,freq,dur,vol,slide){if(!AC)return;const t=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(freq,t);if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+dur);env(g,t,vol,.01,dur);o.connect(g).connect(AC.destination);o.start(t);o.stop(t+dur+.02)}
+function noiseSfx(dur,vol,ftype,freq){if(!AC)return;const t=AC.currentTime,n=AC.createBufferSource();n.buffer=NB;const f=AC.createBiquadFilter();f.type=ftype;f.frequency.value=freq;const g=AC.createGain();env(g,t,vol,.005,dur);n.connect(f).connect(g).connect(AC.destination);n.start(t);n.stop(t+dur)}
+const sfx={
+  slash(){noiseSfx(.16,.35,"highpass",2200)},
+  hit(){noiseSfx(.12,.5,"lowpass",900);blip("square",120,.12,.2,60)},
+  chomp(){noiseSfx(.1,.5,"bandpass",500);setTimeout(()=>noiseSfx(.12,.5,"bandpass",420),110);blip("sine",90,.2,.35,50)},
+  munch(){for(let i=0;i<3;i++)setTimeout(()=>noiseSfx(.06,.25,"bandpass",1400+i*200),i*80)},
+  star(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>blip("triangle",f,.25,.25),i*90))},
+  ouch(){blip("square",300,.2,.2,120)},
+  die(){blip("sawtooth",220,1.1,.3,40);noiseSfx(.6,.3,"lowpass",400)},
+  egg(){[784,988,1175,1568,1976].forEach((f,i)=>setTimeout(()=>blip("sine",f,.4,.22),i*110))},
+};
+
+/* ========================= world state ========================= */
+// Everything that would be shared in multiplayer lives in `world`. `me` is the local player (one entry of world.players).
+const world={dinos:[],plants:[],fish:[],meals:[],players:[],egg:null,uid:0};
+let me=null;
+const game={state:"pick",t:0,gen:0,lastSp:"trex",deadT:0,killer:null,popT:0};
+const fx=[], texts=[];
+const cam={x:0,y:0,z:1};
+let cw=0,ch=0,dpr=1;
+const cv=$("cv"),ctx=cv.getContext("2d");
+
+function newPlayer(sp){return{local:true,kids:[],sp,size:1,food:0,x:rnd(W),y:rnd(W),vx:0,vy:0,face:1,yaw:0,ph:0,mv:0,cd:0,atk:0,jaw:0,dead:false,deadT:0,hurt:0,kx:0,ky:0,tooBigT:0}}
+function spawnDino(sp,size,x,y){const e={id:++world.uid,sp,size,x:wrap(x),y:wrap(y),face:Math.random()<.5?-1:1,yaw:rnd(TAU),vx:0,vy:0,ph:rnd(TAU),mv:0,state:"wander",wt:0,head:rnd(TAU),graze:false,
+  dmg:0,stun:0,kx:0,ky:0,wind:0,rest:0,huntT:0,huntCd:rnd(1,3),jaw:0,dying:0,angry:0,scared:0,hurt:0};world.dinos.push(e);return e}
+const fishLen=s=>len(s)*.5;
+function spawnFish(size,x,y){world.fish.push({id:++world.uid,size,x:wrap(x),y:wrap(y),ang:rnd(TAU),sp:0,t:rnd(3),dead:0,hurt:0,v:Math.random()*4|0,jump:0})}
+function spawnPlant(size,x,y){for(let k=0;k<8&&isWater(x,y);k++){x+=rnd(-1,1)*len(size)*4;y+=rnd(-1,1)*len(size)*4}if(isWater(x,y))return;world.plants.push({id:++world.uid,size,x:wrap(x),y:wrap(y),v:Math.random()*8|0,f:Math.random()<.5?-1:1,rot:rnd(TAU),eaten:0})}
+
+const zoomFor=s=>Math.min(cw,ch)/(len(s)*6.6);
+const viewR=()=>Math.hypot(cw,ch)/2/zoomFor(me.size)*1.25;
+function dist(a,b){return Math.hypot(wd(a.x-b.x),wd(a.y-b.y))}
+
+/* how many of each kind to keep around the player */
+function slots(){
+  const s=me.size,meat=SP[me.sp].meat,L=[],top=Math.min(MAXS,s);
+  L.push({k:"d",diet:"herb",lo:s,hi:s,n:meat?4:2});
+  L.push({k:"d",diet:"any",lo:Math.max(1,s-3),hi:s-1,n:3});
+  if(s<MAXS){L.push({k:"d",diet:"meat",lo:s+1,hi:Math.min(MAXS,s+3),n:2});L.push({k:"d",diet:"herb",lo:s+1,hi:Math.min(MAXS,s+4),n:2})}
+  L.push({k:"d",diet:"meat",lo:top,hi:top,n:1});
+  L.push({k:"p",lo:s,hi:s,n:meat?2:6});
+  L.push({k:"p",lo:Math.max(1,s-3),hi:s-1,n:meat?2:3});
+  if(s<MAXS)L.push({k:"p",lo:s+1,hi:Math.min(MAXS,s+3),n:2});
+  return L.filter(q=>q.hi>=q.lo);
+}
+function populate(initial){
+  const R0=viewR(),R1=R0*2.3,s=me.size;
+  world.dinos=world.dinos.filter(e=>{const d=dist(e,me);return d<R1*1.5&&!(d>R0*1.1&&e.size<s-3)});
+  world.plants=world.plants.filter(p=>{const d=dist(p,me);return d<R1*1.5&&!(d>R0*1.1&&p.size<s-3)});
+  world.fish=world.fish.filter(f=>{const d=dist(f,me);return d<R1*1.5&&!(d>R0*1.1&&f.size<s-3)&&!(f.dead&&f.dead<=0&&!f.meal)});
+  {let have=0;for(const f of world.fish)if(!f.dead&&dist(f,me)<R1)have++;
+    for(let tries=0;have<9&&tries<(initial?60:6);tries++){const an=rnd(TAU),rr=rnd(initial?len(s)*2:R0*1.05,R1),x=me.x+Math.cos(an)*rr,y=me.y+Math.sin(an)*rr;
+      if(isWater(x,y)){const lo=Math.max(1,s-2),hi=Math.min(MAXS,s+1);spawnFish(lo+(Math.random()*(hi-lo+1)|0),x,y);have++}}}
+  let budget=initial?999:3;
+  for(const q of slots()){
+    const pool=q.k==="d"?world.dinos:world.plants;
+    let have=0;for(const e of pool){if(e.size<q.lo||e.size>q.hi||e.dying)continue;if(q.k==="d"&&q.diet!=="any"&&(SP[e.sp].meat?"meat":"herb")!==q.diet)continue;if(dist(e,me)<R1)have++}
+    while(have<q.n&&budget>0){
+      const size=q.lo+(Math.random()*(q.hi-q.lo+1)|0);const danger=q.k==="d"&&size>=s&&q.diet==="meat";
+      const rmin=initial&&!danger?len(s)*3:R0*1.1, r=rnd(rmin,R1), an=rnd(TAU);
+      const x=me.x+Math.cos(an)*r,y=me.y+Math.sin(an)*r;
+      if(q.k==="d"){const sp=q.diet==="meat"?pick(MEATS):q.diet==="herb"?pick(HERBS):pick(Math.random()<.6?HERBS:MEATS);spawnDino(sp,size,x,y)}
+      else spawnPlant(size,x,y);
+      have++;budget--;
+    }
+  }
+}
+
+/* ========================= rules ========================= */
+const needed=e=>Math.max(1,e.size-me.size);
+const reachMe=e=>(len(e.size)+len(me.size))*.45+len(me.size)*.32;
+const biteReach=e=>(len(e.size)+len(me.size))*.42+len(e.size)*.1;
+const detect=e=>Math.max(len(me.size)*5.2,len(e.size)*2.6);
+const reachFish=f=>len(me.size)*.75+fishLen(f.size)*.4;
+const faceTo=(o)=>{me.yaw=Math.atan2(wd(o.y-me.y),wd(o.x-me.x));me.face=Math.cos(me.yaw)>=0?1:-1};
+function target(){
+  let best=null,bd=1e9;for(const e of world.dinos){if(e.dying)continue;const d=dist(e,me),r=reachMe(e);if(d<r&&d-r<bd){bd=d-r;best=e}}
+  if(SP[me.sp].meat)for(const f of world.fish){if(f.dead)continue;const d=dist(f,me),r=reachFish(f);if(d<r&&d-r<bd){bd=d-r;best=f}}
+  return best
+}
+function catchFish(f){
+  f.dead=1;f.hurt=.3;sfx.chomp();burst(f.x,f.y,"#9fd0e0",14,fishLen(f.size)*.03,fishLen(f.size)*.2);
+  if(me.kids.length){f.meal=true;f.dead=99;world.meals.push(f)}
+  if(f.size>=me.size){say(f.x,f.y,"FISH! +1","#9fe6ff",fishLen(f.size));addFood()}else say(f.x,f.y,"Fish! (too small to count)","#d9cfb6",fishLen(f.size));
+}
+function attack(want){
+  if(game.state!=="play"||me.dead||me.cd>0)return;
+  audio();me.cd=.3;me.atk=1;me.jaw=1;
+  if(want&&want.ang!==undefined&&!want.dead&&dist(want,me)<reachFish(want)){faceTo(want);catchFish(want);return}
+  const e=want&&want.ang===undefined&&!want.dying&&world.dinos.includes(want)&&dist(want,me)<reachMe(want)?want:target();
+  if(!e){sfx.slash();const L=len(me.size);fx.push({k:"slash",x:me.x+Math.cos(me.yaw)*L*.6,y:me.y+Math.sin(me.yaw)*L*.6,h:L*.4,t:.22,s:L*.5,f:me.face});
+    if(!SP[me.sp].meat)eatPlantNear(true);return}
+  faceTo(e);
+  if(e.ang!==undefined){catchFish(e);return}
+  e.dmg++;e.hurt=.25;sfx.hit();
+  fx.push({k:"slash",x:e.x,y:e.y,h:len(e.size)*.45,t:.25,s:len(e.size)*.55,f:me.face});
+  burst(e.x,e.y,"#8b1a10",8,len(e.size)*.02,len(e.size)*.35);
+  if(e.dmg>=needed(e)){kill(e);return}
+  const dx=wd(e.x-me.x),dy=wd(e.y-me.y),d=Math.hypot(dx,dy)||1,k=len(me.size)*2.4;
+  e.kx=dx/d*k;e.ky=dy/d*k;e.stun=.5;e.wind=0;
+  if(e.state==="wind")e.state="hunt";
+  if(e.size>=me.size){e.angry=7;e.state="hunt";e.huntT=0}else e.scared=6;
+  say(e.x,e.y,`${needed(e)-e.dmg} more!`,"#ffd27a",len(e.size)*1.1);
+}
+function kill(e){
+  e.dying=1.4;e.state="dead";e.jaw=0;
+  const counts=e.size>=me.size,H=len(e.size)*1.2;
+  if(SP[me.sp].meat){
+    sfx.chomp();burst(e.x,e.y,"#a01c10",18,len(e.size)*.03,len(e.size)*.3);
+    if(me.kids.length){e.meal=true;e.dying=.7;world.meals.push(e);say(e.x,e.y,"Food for your babies!","#ff9ab2",H)}
+    else if(counts){say(e.x,e.y,"CHOMP! +1","#ffcf6a",H);addFood()}
+    else say(e.x,e.y,"Chomp! (too small to count)","#d9cfb6",H);
+  }else{
+    say(e.x,e.y,"Beat it! (you only eat plants)","#d9cfb6",H);
+  }
+}
+function addFood(){me.food++;hud();if(me.size<MAXS&&me.food>=3)setTimeout(grow,350)}
+function grow(){
+  if(me.dead||me.size>=MAXS||me.food<3)return;
+  me.size++;me.food=0;sfx.star();
+  for(let i=0;i<24;i++)fx.push({k:"star",x:me.x,y:me.y,h:len(me.size)*.5,g:groundY(me.x,me.y,len(me.size)),vx:rnd(-1,1)*len(me.size)*1.6,vy:rnd(-1,1)*len(me.size)*1.6,vh:rnd(.6,2)*len(me.size)*1.6,t:1.2});
+  if(me.size===MAXS){banner("FULLY GROWN!","Follow the blue arrow to the egg to get your baby",4);placeEgg()}
+  else banner("★ SIZE "+me.size+" ★","You got a star and grew bigger!",2.2);
+  hud();
+}
+function placeEgg(){let x,y;for(let k=0;k<30;k++){const an=rnd(TAU),r=len(MAXS)*26;x=wrap(me.x+Math.cos(an)*r);y=wrap(me.y+Math.sin(an)*r);if(!isWater(x,y))break}world.egg={x,y,t:0}}
+function eatPlantNear(fromClaw){
+  const L=len(me.size),mx=me.x+Math.cos(me.yaw)*L*.3,my=me.y+Math.sin(me.yaw)*L*.3;
+  for(const p of world.plants){if(p.eaten)continue;const d=Math.hypot(wd(p.x-mx),wd(p.y-my));const r=L*.42+len(p.size)*.3*(fromClaw?1.4:1);if(d>r)continue;
+    const H=plantH(p.size);
+    if(p.size>me.size){if(me.tooBigT<=0){say(p.x,p.y,"Too big! Grow first","#ffb08a",H);me.tooBigT=2}continue}
+    if(p.meal)continue;
+    if(me.kids.length){p.meal=true;world.meals.push(p);me.jaw=1;sfx.munch();say(p.x,p.y,"Food for your babies!","#ff9ab2",H);return true}
+    p.eaten=.6;me.jaw=1;sfx.munch();burst(p.x,p.y,"#5c9a32",14,len(p.size)*.02,H*.4);
+    if(p.size===me.size){say(p.x,p.y,"MUNCH! +1","#bff08a",H);addFood()}else say(p.x,p.y,"munch (too small to count)","#d9cfb6",H);
+    return true}
+  return false;
+}
+function biteMe(e){
+  if(me.dead)return;
+  fx.push({k:"slash",x:me.x,y:me.y,h:len(me.size)*.45,t:.3,s:len(e.size)*.6,f:-e.face});
+  if(e.size>me.size){die(e);return}
+  sfx.ouch();me.hurt=.5;const dx=wd(me.x-e.x),dy=wd(me.y-e.y),d=Math.hypot(dx,dy)||1,k=len(e.size)*3;me.kx=dx/d*k;me.ky=dy/d*k;
+  if(me.food>0){me.food--;hud()}say(me.x,me.y,"OUCH!","#ff8a6a",len(me.size)*1.2);
+}
+function die(e){
+  me.dead=true;me.deadT=0;game.killer=e;sfx.die();burst(me.x,me.y,"#9a1a10",26,len(me.size)*.03,len(me.size)*.3);
+  setTimeout(()=>{if(!me.dead)return;game.state="dead";const s=SP[e.sp];
+    $("deadTitle").innerHTML=s.meat?"YOU GOT <em>EATEN!</em>":"YOU GOT <em>BEATEN!</em>";
+    $("deadText").textContent=`A size ${e.size} ${s.name} got you. You were size ${me.size}. Start over as a baby!`;
+    show("dead")},1700);
+}
+function hatch(){const egg=world.egg;egg.hatching=1.6;egg.t=0;sfx.egg();banner("THE EGG IS HATCHING!","",1.8)}
+function eggHatched(){
+  const egg=world.egg;world.egg=null;
+  me.kids.push({x:egg.x,y:egg.y,vx:0,vy:0,face:me.face,yaw:me.yaw,ph:0,mv:0,jaw:0,born:0});
+  burst(egg.x,egg.y,"#8cc8ff",22,len(MAXS)*.02,len(MAXS)*.15);sfx.star();
+  banner("IT'S YOUR BABY!","Your baby follows you everywhere. Another egg is out there!",3.2);hud();
+  const run=game.run;setTimeout(()=>{if(game.run===run&&game.state!=="pick"&&!me.dead&&!world.egg)placeEgg()},12000);
+}
+const kidLen=k=>len(MAXS)*(.34+.05*Math.min(6,k?k.meals||0:0));
+function finishMeal(m){
+  m.meal=false;world.meals=world.meals.filter(x=>x!==m);
+  if(m.ang!==undefined)m.dead=.5;else if(m.sp)m.dying=.6;else m.eaten=.6;
+}
+function kidStep(dt){
+  const L=len(me.size),hx=Math.cos(me.yaw),hy=Math.sin(me.yaw);
+  me.kids.forEach((k,i)=>{
+    const kL=kidLen(k);
+    k.born+=dt;k.jaw=Math.max(0,k.jaw-dt*3);
+    if(!k.meal||!k.meal.meal){k.meal=null;k.eatT=0;let bd=L*9;for(const m of world.meals){if(me.kids.some(o=>o!==k&&o.meal===m))continue;const d=dist(m,k);if(d<bd){bd=d;k.meal=m}}}
+    if(k.meal){const m=k.meal,dx=wd(m.x-k.x),dy=wd(m.y-k.y),d=Math.hypot(dx,dy);
+      if(d<kL*.6){k.vx*=.5;k.vy*=.5;k.mv=0;k.yaw=Math.atan2(dy,dx);k.eatT=(k.eatT||0)+dt;if(Math.sin(k.eatT*14)>.3)k.jaw=1;
+        if(Math.random()<dt*6)burst(m.x,m.y,m.sp||m.ang!==undefined?"#9a2014":"#5c9a32",2,kL*.012,kL*.1);
+        if(k.eatT>1.4){finishMeal(m);k.meal=null;k.eatT=0;k.meals=(k.meals||0)+1;sfx.munch();say(k.x,k.y,"Yum! ♥","#ff9ab2",kL)}return}
+      const sp=pspeed(me.size)*1.1,kk=Math.min(1,dt*6);k.vx=lerp(k.vx,dx/d*sp,kk);k.vy=lerp(k.vy,dy/d*sp,kk);
+      k.x=wrap(k.x+k.vx*dt);k.y=wrap(k.y+k.vy*dt);k.yaw=angTo(k.yaw,Math.atan2(k.vy,k.vx),dt*8);k.mv=1;k.ph+=dt*Math.hypot(k.vx,k.vy)/kL*5.5;return}
+    // line up behind the parent, a little to the side, one behind another
+    const back=L*.55+kL*.6+i*kL*.85,side=(i%2?1:-1)*kL*.35;
+    const tx=me.x-hx*back-hy*side,ty=me.y-hy*back+hx*side;
+    const dx=wd(tx-k.x),dy=wd(ty-k.y),d=Math.hypot(dx,dy);
+    if(d>L*14){k.x=wrap(tx);k.y=wrap(ty);return}
+    const sp=d<kL*.25?0:Math.min(pspeed(me.size)*1.25,d*3);
+    const kk=Math.min(1,dt*6);k.vx=lerp(k.vx,d?dx/d*sp:0,kk);k.vy=lerp(k.vy,d?dy/d*sp:0,kk);
+    k.x=wrap(k.x+k.vx*dt);k.y=wrap(k.y+k.vy*dt);
+    const v=Math.hypot(k.vx,k.vy);k.yaw=angTo(k.yaw,v>kL*.2?Math.atan2(k.vy,k.vx):me.yaw,dt*6);
+    k.mv=clamp(v/(kL*2),0,1);k.ph+=dt*v/kL*5.5;
+  });
+}
+
+/* ========================= fish ========================= */
+function fishStep(dt){
+  for(const f of world.fish){
+    f.hurt=Math.max(0,f.hurt-dt);
+    if(f.dead){if(!f.meal)f.dead-=dt;continue}
+    const fl=fishLen(f.size);f.t-=dt;
+    const dx=wd(f.x-me.x),dy=wd(f.y-me.y),d=Math.hypot(dx,dy)||1;
+    let want=f.ang,spd=fl*.9;
+    if(!me.dead&&d<len(me.size)*2.2){want=Math.atan2(dy,dx);spd=Math.min(fl*3,pspeed(me.size)*.5)}
+    else if(f.t<=0){f.t=rnd(1.5,4);f.wantA=f.ang+rnd(-1.2,1.2)}
+    if(f.wantA!==undefined&&!(d<len(me.size)*2.2))want=f.wantA;
+    let da=((want-f.ang+Math.PI*3)%TAU)-Math.PI;f.ang+=clamp(da,-dt*4,dt*4);
+    const nx=f.x+Math.cos(f.ang)*spd*dt,ny=f.y+Math.sin(f.ang)*spd*dt;
+    if(isWater(nx+Math.cos(f.ang)*fl*.6,ny+Math.sin(f.ang)*fl*.6)){f.x=wrap(nx);f.y=wrap(ny);f.sp=spd}else{f.ang+=Math.PI*rnd(.6,1.4);f.wantA=f.ang;f.sp=0}
+    if(f.jump>0){f.jump-=dt;if(f.jump<.12&&!f.splash){f.splash=1;burst(f.x,f.y,"#cfeef5",6,fl*.01,0)}}else if(Math.random()<dt*.05){f.jump=.9;f.splash=0}
+  }
+}
+
+/* ========================= AI ========================= */
+function aiStep(e,dt){
+  e.hurt=Math.max(0,e.hurt-dt);
+  if(e.dying>0){if(!e.meal)e.dying-=dt;return}
+  const S=SP[e.sp],L=len(e.size),nat=L*2.3;
+  const dx=wd(me.x-e.x),dy=wd(me.y-e.y),d=Math.hypot(dx,dy)||1;
+  e.huntCd-=dt;e.scared-=dt;if(e.state!=="wind")e.jaw=Math.max(0,e.jaw-dt*3);
+  if(e.stun>0){e.stun-=dt;e.x=wrap(e.x+e.kx*dt);e.y=wrap(e.y+e.ky*dt);e.kx*=.88;e.ky*=.88;e.mv=0;return}
+  const alive=!me.dead&&game.state==="play",threat=e.size>=me.size;
+  let mx=0,my=0,spd=0;
+  if(e.state==="wind"){
+    e.wind-=dt;e.jaw=1;e.face=dx>=0?1:-1;e.yaw=angTo(e.yaw,Math.atan2(dy,dx),dt*10);
+    if(e.wind<=0){if(alive&&d<biteReach(e)*1.3)biteMe(e);e.state="rest";e.rest=.9;e.jaw=.6}
+  }else if(e.state==="rest"){
+    e.rest-=dt;if(e.rest<=0)e.state=(alive&&threat&&(S.meat||e.angry>0))?"hunt":"wander";
+  }else{
+    if(alive&&threat&&e.state!=="hunt"&&((S.meat&&e.huntCd<=0&&d<detect(e))||e.angry>0)){
+      e.state="hunt";e.huntT=0;const v=clamp(1-d/(viewR()*1.4),0,1);roarSfx(e.size,v*.9);e.jaw=1;
+    }
+    if(e.state==="wander"&&alive&&e.size<me.size&&d<len(me.size)*3.4&&(SP[me.sp].meat||e.scared>0))e.state="flee";
+    if(e.state==="hunt"){
+      e.huntT+=dt;if(e.angry>0)e.angry-=dt;
+      if(!alive||!threat||(e.huntT>7&&e.angry<=0)||d>detect(e)*1.8){e.state="wander";e.huntCd=6;e.angry=0}
+      else if(d<biteReach(e)){e.state="wind";e.wind=S.meat?.6:.7;e.face=dx>=0?1:-1}
+      else{mx=dx/d;my=dy/d;spd=Math.min(nat*1.15,pspeed(me.size)*.84)}
+    }
+    if(e.state==="flee"){
+      if(!alive||d>len(me.size)*7)e.state="wander";else{mx=-dx/d;my=-dy/d;spd=Math.min(nat*1.3,pspeed(me.size)*.8)}
+    }
+    if(e.state==="wander"){
+      e.wt-=dt;if(e.wt<=0){e.wt=rnd(2,5);e.graze=Math.random()<(S.meat?.25:.5);e.head=rnd(TAU)}
+      if(!e.graze){mx=Math.cos(e.head);my=Math.sin(e.head);spd=nat*.28}
+    }
+  }
+  e.wet=isWater(e.x,e.y);if(e.wet)spd*=.6;
+  const k=Math.min(1,dt*5);e.vx=lerp(e.vx,mx*spd,k);e.vy=lerp(e.vy,my*spd,k);
+  e.x=wrap(e.x+e.vx*dt);e.y=wrap(e.y+e.vy*dt);
+  const v=Math.hypot(e.vx,e.vy);if(Math.abs(e.vx)>nat*.05&&e.state!=="wind")e.face=e.vx>0?1:-1;
+  if(v>nat*.05&&e.state!=="wind")e.yaw=angTo(e.yaw,Math.atan2(e.vy,e.vx),dt*5);
+  e.mv=clamp(v/(nat*.6),0,1);e.ph+=dt*v/L*5.5;
+}
+
+/* ========================= input ========================= */
+const fingers=new Map();let keys={};
+function scr(e){const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+function hitTest(pt){
+  if(!me||me.dead)return null;let best=null,bd=1e9;
+  const tryHit=(o,L,hh,kind)=>{const g=groundY(o.x,o.y,L),c=toScr(o.x,o.y,g+hh*.5);if(c.behind)return;const r=Math.max(hh*.6,L*.45)*c.ppu+24;const d=Math.hypot(pt.x-c.x,pt.y-c.y);if(d<r&&d/r<bd){bd=d/r;best={kind,o}}};
+  for(const e of world.dinos){if(e.dying||e.state==="dead")continue;const L=len(e.size);tryHit(e,L,tpl(e.sp).top/100*L,"dino")}
+  if(SP[me.sp].meat)for(const f of world.fish){if(f.dead)continue;tryHit(f,fishLen(f.size),fishLen(f.size)*.4,"fish")}
+  if(best)return best;
+  if(!SP[me.sp].meat)for(const p of world.plants){if(p.eaten)continue;const H=plantH(p.size);tryHit(p,H*.8,H,"plant")}
+  return best;
+}
+const taps=new Map();
+function doTap(h){if(game.state!=="play"||!me||me.dead)return;me.goal={...h,t:6};fx.push({k:"tap",o:h.o,t:.5});
+  if(h.kind==="dino"&&dist(h.o,me)<reachMe(h.o)){attack(h.o);me.goal=null}
+  if(h.kind==="fish"&&dist(h.o,me)<reachFish(h.o)){attack(h.o);me.goal=null}}
+cv.addEventListener("pointerdown",e=>{e.preventDefault();try{cv.setPointerCapture(e.pointerId)}catch(_){}audio();
+  const pt=scr(e);fingers.delete(e.pointerId);fingers.set(e.pointerId,pt);
+  if(game.state==="play"){const h=hitTest(pt);if(h)taps.set(e.pointerId,{x:pt.x,y:pt.y,t:performance.now(),h})}});
+cv.addEventListener("pointermove",e=>{if(!fingers.has(e.pointerId))return;const pt=scr(e);fingers.set(e.pointerId,pt);
+  const tp=taps.get(e.pointerId);if(tp&&Math.hypot(pt.x-tp.x,pt.y-tp.y)>16)taps.delete(e.pointerId)});
+cv.addEventListener("pointerup",e=>{const tp=taps.get(e.pointerId);taps.delete(e.pointerId);fingers.delete(e.pointerId);if(tp&&performance.now()-tp.t<450)doTap(tp.h)});
+const lift=e=>{fingers.delete(e.pointerId);taps.delete(e.pointerId)};
+cv.addEventListener("pointercancel",lift);cv.addEventListener("lostpointercapture",lift);
+addEventListener("blur",()=>{fingers.clear();keys={}});
+addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=true;if(e.key===" "||e.code==="Space"){e.preventDefault();if(!e.repeat)attack()}if(e.key==="Escape")togglePause()});
+addEventListener("keyup",e=>{keys[e.key.toLowerCase()]=false});
+document.addEventListener("gesturestart",e=>e.preventDefault());
+document.addEventListener("dblclick",e=>e.preventDefault());
+// where on the ground (relative to me) is this screen point?
+const ray=new THREE.Raycaster(),ndc=new THREE.Vector2(),gplane=new THREE.Plane(new THREE.Vector3(0,1,0),0),hitP=new THREE.Vector3();
+function groundPoint(p,y){ndc.set(p.x/cw*2-1,-(p.y/ch*2-1));ray.setFromCamera(ndc,camera);gplane.constant=-y;return ray.ray.intersectPlane(gplane,hitP)}
+
+/* ========================= UI ========================= */
+function show(id){for(const o of["pick","dead","paused"])$(o).hidden=o!==id;const playing=id===null;$("hud").hidden=!playing&&id!=="paused";$("menuBtn").hidden=!playing}
+let bannerTimer=0;
+function banner(big,small,secs){const b=$("banner");b.innerHTML="";b.append(big);if(small){const s=document.createElement("small");s.textContent=small;b.append(s)}b.classList.add("show");clearTimeout(bannerTimer);bannerTimer=setTimeout(()=>b.classList.remove("show"),secs*1000)}
+const LEAF='<svg viewBox="0 0 16 16"><path d="M3 13C3 6 8 3 14 2c-1 6-4 11-11 11z" fill="#8fd062"/></svg>';
+const MEAT='<svg viewBox="0 0 16 16"><path d="M5 11c-3-2-2-7 2-8s7 2 6 5-5 5-8 3z" fill="#d8573c"/><path d="M5 11l-3 3" stroke="#eee" stroke-width="2.4" stroke-linecap="round"/></svg>';
+function hud(){
+  if(!me)return;const s=SP[me.sp];
+  $("hName").textContent=s.name.replace(/­/g,"");$("hSize").textContent=me.size>=MAXS?"fully grown!":`size ${me.size} of ${MAXS}`;
+  let st="";for(let i=1;i<=MAXS;i++)st+=i<=me.size?"<i>★</i>":"☆";$("hStars").innerHTML=st;
+  const f=$("hFood");
+  if(me.size>=MAXS){f.innerHTML=world.egg?'<span style="color:#8cc8ff">Find the blue egg!</span>':'<span style="color:#ff9ab2">♥ Your babies are with you</span>'}
+  else{let h=`<span>${s.meat?"eat":"eat plants"}:</span>`;for(let i=0;i<3;i++)h+=`<span class="pip ${i<me.food?"on":""}">${s.meat?MEAT:LEAF}</span>`;f.innerHTML=h}
+  const g=$("hGen"),nk=me.kids.length;g.hidden=nk<1;g.textContent=`Babies following you: ${nk}`;
+}
+function openPick(hatchling){game.state="pick";$("pickTitle").textContent=hatchling?"The egg hatched! Pick your hatchling":"Pick your dinosaur";show("pick")}
+function start(sp){
+  audio();game.run=(game.run||0)+1;game.lastSp=sp;world.dinos=[];world.fish=[];world.meals=[];world.plants=[];world.egg=null;fx.length=0;texts.length=0;
+  me=newPlayer(sp);world.players=[me];for(let k=0;k<40&&isWater(me.x,me.y);k++){me.x=rnd(W);me.y=rnd(W)}
+  resize();cam.x=me.x;cam.y=me.y;cam.z=zoomFor(1);camL=len(1);camH=groundY(me.x,me.y,camL);
+  populate(true);game.state="play";show(null);hud();
+  banner(SP[sp].name.replace(/­/g,"").toUpperCase(),SP[sp].meat?"Meat eater: tap dinos your size to attack and eat them":"Plant eater: eat plants your size, tap a dino to fight it",3);
+}
+function togglePause(){if(game.state==="play"){game.state="paused";fingers.clear();show("paused")}else if(game.state==="paused"){game.state="play";show(null)}}
+$("menuBtn").onclick=togglePause;$("resumeBtn").onclick=togglePause;$("quitBtn").onclick=()=>openPick(false);
+$("againBtn").onclick=()=>start(game.lastSp);$("pickBtn").onclick=()=>openPick(false);
+
+/* pick cards: each dinosaur rendered in 3D on a small second renderer */
+const cardCvs=[];
+for(const sp of PLAYABLE){
+  const b=document.createElement("button");b.className="card";b.setAttribute("aria-label",SP[sp].name.replace(/­/g,""));
+  const c=document.createElement("canvas");c.width=360;c.height=240;b.append(c);
+  const n=document.createElement("b");n.textContent=SP[sp].name.replace(/­/g,"").replace(/(saurus|taurus|raptor|mimus|odon|ceratops)$/,"­$1");b.append(n);
+  const d=document.createElement("span");d.className=SP[sp].meat?"meat":"plant";d.textContent=SP[sp].meat?"Meat eater":"Plant eater";b.append(d);
+  b.onclick=()=>start(sp);$("cards").append(b);cardCvs.push({c,sp,g:c.getContext("2d")});
+}
+let cardR=null,cardScene=null,cardCam=null,cardI={},cardN=0;
+function initCards(){
+  const oc=document.createElement("canvas");oc.width=360;oc.height=240;
+  cardR=new THREE.WebGLRenderer({canvas:oc,antialias:true,alpha:true,preserveDrawingBuffer:true});cardR.setSize(360,240,false);cardR.outputColorSpace=THREE.SRGBColorSpace;cardR.toneMapping=THREE.ACESFilmicToneMapping;
+  cardR.shadowMap.enabled=true;
+  cardScene=new THREE.Scene();cardScene.add(new THREE.HemisphereLight(0xe8f0ff,0x5a4630,1.4));
+  const l=new THREE.DirectionalLight(0xfff0d8,2.8);l.position.set(-60,120,80);l.castShadow=true;l.shadow.camera.left=l.shadow.camera.bottom=-110;l.shadow.camera.right=l.shadow.camera.top=110;l.shadow.mapSize.set(512,512);cardScene.add(l);
+  const rim=new THREE.DirectionalLight(0xff8a50,1.2);rim.position.set(60,40,-90);cardScene.add(rim);
+  const gnd=new THREE.Mesh(new THREE.CircleGeometry(95,40).rotateX(-Math.PI/2),new THREE.ShadowMaterial({opacity:.45}));gnd.receiveShadow=true;cardScene.add(gnd);
+  cardCam=new THREE.PerspectiveCamera(32,1.5,1,2000);
+}
+function drawCards(t){
+  if(!cardR)initCards();
+  const n=cardCvs.length,per=cardN<n?n:3;
+  for(let q=0;q<per;q++){const k=cardN++%n,{c,sp,g}=cardCvs[k];
+    for(const s in cardI)cardI[s].g.visible=false;
+    let I=cardI[sp];if(!I){I=cardI[sp]=makeInst(sp);cardScene.add(I.g)}I.g.visible=true;
+    const T=I.T,bb=T.box,cx=(bb.min.x+bb.max.x)/2,cy=(bb.max.y)/2,hgt=bb.max.y,wid=bb.max.x-bb.min.x;
+    I.g.rotation.y=-.55+Math.sin(t*.5+k)*.35;
+    pose(I,{ph:t*2.2,mv:.35,jaw:SP[sp].meat?(Math.sin(t*1.3+k)>.55?1:0):0,atk:0,angry:SP[sp].meat},t);
+    const D=Math.max(wid*.62,hgt*1.05)/Math.tan(16*Math.PI/180)*.62;
+    cardCam.position.set(cx+D*.15,cy+D*.28,D);cardCam.lookAt(cx*.2,cy*.92,0);
+    cardR.render(cardScene,cardCam);g.clearRect(0,0,360,240);g.drawImage(cardR.domElement,0,0)}
+}
+
+/* ========================= effects ========================= */
+function burst(x,y,col,n,sz,h){const g=groundY(x,y,len(me?me.size:1));for(let i=0;i<n;i++)fx.push({k:"p",x,y,h:h||0,g,vx:rnd(-1,1)*sz*60,vy:rnd(-1,1)*sz*60,vh:rnd(.3,1.6)*sz*60,t:rnd(.4,.9),r:sz*rnd(2,5),col})}
+function say(x,y,text,col,h){texts.push({x,y,h:h||0,g:groundY(x,y,len(me.size)),text,col,t:1.4})}
+
+/* ========================= loop ========================= */
+function resize(){dpr=Math.min(2,window.devicePixelRatio||1);cw=innerWidth;ch=innerHeight;cv.width=Math.round(cw*dpr);cv.height=Math.round(ch*dpr);
+  renderer.setPixelRatio(Math.min(1.5,window.devicePixelRatio||1));renderer.setSize(cw,ch,false);camera.aspect=cw/ch;camera.updateProjectionMatrix()}
+addEventListener("resize",resize);resize();
+
+let last=performance.now(),popT=0;
+function step(dt){
+  game.t+=dt;
+  me.cd-=dt;me.atk=Math.max(0,me.atk-dt*4);me.jaw=Math.max(0,me.jaw-dt*3);me.hurt=Math.max(0,me.hurt-dt);me.tooBigT-=dt;
+  if(me.dead){me.deadT+=dt;return}
+  let mx=0,my=0,f=0;
+  const keyMove=keys["arrowright"]||keys["arrowleft"]||keys["arrowup"]||keys["arrowdown"]||keys.w||keys.a||keys.s||keys.d;
+  if(me.goal){const g=me.goal,o=g.o;g.t-=dt;
+    const gone=g.kind==="dino"?(o.dying||!world.dinos.includes(o)):g.kind==="fish"?(o.dead||!world.fish.includes(o)):(o.eaten||o.meal||!world.plants.includes(o));
+    if(gone||g.t<=0||fingers.size||keyMove)me.goal=null;
+    else{const dx=wd(o.x-me.x),dy=wd(o.y-me.y),d=Math.hypot(dx,dy)||1;
+      if(g.kind==="dino"&&d<reachMe(o)*.9){if(me.cd<=0){attack(o);me.goal=null}}
+      else if(g.kind==="fish"&&d<reachFish(o)*.9){if(me.cd<=0){attack(o);me.goal=null}}
+      else{mx=dx/d;my=dy/d;f=1}}}
+  if(me.goal){}else if(fingers.size){const p=[...fingers.values()].pop();const L=len(me.size),gy=groundY(me.x,me.y,L);
+    const c=toScr(me.x,me.y,gy+L*.3),sd=Math.hypot(p.x-c.x,p.y-c.y),gp=groundPoint(p,gy);
+    if(sd>10&&gp){const dx=gp.x,dy=gp.z,d=Math.hypot(dx,dy);if(d>0){mx=dx/d;my=dy/d;f=clamp(sd/110,.3,1)}}}
+  else{const kx=(keys["arrowright"]||keys.d?1:0)-(keys["arrowleft"]||keys.a?1:0),ky=(keys["arrowdown"]||keys.s?1:0)-(keys["arrowup"]||keys.w?1:0);if(kx||ky){const d=Math.hypot(kx,ky);mx=kx/d;my=ky/d;f=1}}
+  me.wet=isWater(me.x,me.y);
+  const sp=pspeed(me.size)*f*(me.wet?.6:1),k=Math.min(1,dt*8);
+  me.vx=lerp(me.vx,mx*sp,k);me.vy=lerp(me.vy,my*sp,k);
+  me.x=wrap(me.x+(me.vx+me.kx)*dt);me.y=wrap(me.y+(me.vy+me.ky)*dt);me.kx*=.86;me.ky*=.86;
+  const v=Math.hypot(me.vx,me.vy);
+  if(v>len(me.size)*.15&&me.atk<=0){me.yaw=angTo(me.yaw,Math.atan2(me.vy,me.vx),dt*9);me.face=Math.cos(me.yaw)>=0?1:-1}
+  me.mv=clamp(v/(pspeed(me.size)*.5),0,1);me.ph+=dt*v/len(me.size)*5.5;
+  if(!SP[me.sp].meat)eatPlantNear(false);
+  for(const e of world.dinos)aiStep(e,dt);
+  world.dinos=world.dinos.filter(e=>!(e.state==="dead"&&e.dying<=0));
+  for(const p of world.plants)if(p.eaten>0){p.eaten-=dt;if(p.eaten<=0)p.gone=true}
+  world.plants=world.plants.filter(p=>!p.gone);
+  if(world.egg){const eg=world.egg;eg.t+=dt;
+    if(eg.hatching){eg.hatching-=dt;if(eg.hatching<=0)eggHatched()}
+    else if(dist(eg,me)<len(me.size)*.55+40)hatch()}
+  fishStep(dt);
+  kidStep(dt);
+  popT-=dt;if(popT<=0){popT=.3;populate(false)}
+}
+
+let fpsT=0,fpsN=0,fps=0;
+function frame(now){
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  fpsN++;fpsT+=dt;if(fpsT>=1){fps=fpsN/fpsT;fpsN=0;fpsT=0}
+  if(game.state==="play")step(dt);
+  if(me&&game.state!=="pick"){
+    for(let i=fx.length-1;i>=0;i--){const p=fx[i];p.t-=dt;if(p.vx!==undefined){p.x=wrap(p.x+p.vx*dt);p.y=wrap(p.y+p.vy*dt);p.h+=p.vh*dt;p.vh-=len(me.size)*4*dt;if(p.h<0){p.h=0;p.vh*=-.3;p.vx*=.6;p.vy*=.6}}if(p.t<=0)fx.splice(i,1)}
+    for(let i=texts.length-1;i>=0;i--){texts[i].t-=dt;if(texts[i].t<=0)texts.splice(i,1)}
+    cam.x=me.x;cam.y=me.y;cam.z=lerp(cam.z,zoomFor(me.size),Math.min(1,dt*2));
+    camL=lerp(camL,len(me.size),Math.min(1,dt*2));camH=lerp(camH,groundY(me.x,me.y,len(me.size)),Math.min(1,dt*5));
+    render3D(dt);overlay();
+  }else{ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height)}
+  if(game.state==="pick")drawCards(now/1000);
+  requestAnimationFrame(frame);
+}
+
+/* ========================= 3D frame ========================= */
+const pv=new THREE.Vector3(),camFwd=new THREE.Vector3();
+// world spot (x,y) at height h -> screen {x,y,ppu (pixels per world unit there), behind}
+function toScr(x,y,h){pv.set(wd(x-cam.x),h,wd(y-cam.y));const dep=pv.clone().sub(camera.position).dot(camFwd);pv.project(camera);
+  return{x:(pv.x+1)/2*cw,y:(1-pv.y)/2*ch,ppu:ch/(2*Math.tan(camera.fov*Math.PI/360)*Math.max(1,dep)),behind:dep<=0||pv.z>1}}
+function animOf(e){return{ph:e.ph,mv:e.mv,jaw:e.jaw,atk:e.atk||0,angry:e.state==="hunt"||e.state==="wind"||(e.angry>0)}}
+function render3D(dt){
+  stamp++;const L=camL,D=L*6.6;
+  camT.set(0,camH+L*.35,0);camera.position.set(0,camT.y+Math.sin(EL)*D,Math.cos(EL)*D);camera.lookAt(camT);
+  camera.near=D*.04;camera.far=D*4.2;camera.updateProjectionMatrix();camera.getWorldDirection(camFwd);
+  scene.fog.near=D*1.15;scene.fog.far=D*2.9;
+  sun.position.copy(camT).addScaledVector(SUN,D*2.2);sun.target.position.copy(camT).add(pv.set(0,0,-D*.45));
+  const sc=sun.shadow.camera,ext=D*1.45;if(Math.abs(sc.right-ext)>ext*.02){sc.left=-ext;sc.right=ext;sc.top=ext;sc.bottom=-ext;sc.near=D*.2;sc.far=D*5;sc.updateProjectionMatrix()}
+  sun.shadow.normalBias=L*.012;
+  xray.uCam.value.copy(camera.position);xray.uTgt.value.set(0,camH+L*.3,0);xray.uR.value=L*1.25;
+  updateTerrain(D);
+  const t=game.t,tgt=me.dead?null:target();
+  const near=(x,y,r)=>{const dx=wd(x-cam.x),dy=wd(y-cam.y);return dx>-D*2.2-r&&dx<D*2.2+r&&dy>-D*2.8-r&&dy<D*1.2+r};
+  // dinosaurs
+  for(const e of world.dinos){const Ld=len(e.size);if(!near(e.x,e.y,Ld)){if(e._i)relInst(e._i);continue}
+    let I=e._i;if(!I||I.owner!==e)I=e._i=getInst(e.sp,e);I.stamp=stamp;
+    const fall=e.state==="dead"?clamp((1.4-e.dying)*3,0,1):0;
+    place(I,e.x+(e.hurt>0?Math.sin(t*90)*Ld*.02:0),e.y,Ld,e.yaw);
+    I.inner.rotation.x=fall*1.4;I.inner.position.y=-fall*6;
+    pose(I,animOf(e),t+e.id);
+    I.fade=Math.min(1,I.fade+dt*1.5);setOpacity(I,Math.min(I.fade,e.dying>0?clamp(e.dying/.6,0,1):1));
+    const sk=I.mats.skin;sk.emissive.setRGB(e.hurt>0?.55:e.state==="wind"?.18:0,e.hurt>0?.06:0,0);sk.color.setScalar(e.meal?.55:1);if(I.mats.acc)I.mats.acc.emissive.copy(sk.emissive);
+    const ang=animOf(e).angry;I.mats.eye.emissive.setHex(ang?0xff3a10:0xff9a20);I.mats.eye.emissiveIntensity=ang?1.4:.55;
+    I.disk.visible=e.state==="wind";if(I.disk.visible){windMat.opacity=.25+.2*Math.sin(t*30)}
+  }
+  // me
+  {const Lm=len(me.size);let I=me._i;if(!I||I.owner!==me||I.sp!==me.sp){if(I)relInst(I);I=me._i=getInst(me.sp,me);I.fade=1}I.stamp=stamp;
+    const f=me.dead?clamp(me.deadT*2,0,1):0;
+    place(I,me.x+Math.cos(me.yaw)*me.atk*Lm*.08,me.y+Math.sin(me.yaw)*me.atk*Lm*.08,Lm,me.yaw);I.inner.rotation.x=f*1.4;I.inner.position.y=-f*6;
+    pose(I,{ph:me.ph,mv:me.mv,jaw:me.jaw,atk:me.atk,angry:me.atk>0},t);setOpacity(I,1);
+    I.mats.skin.emissive.setRGB(me.hurt>0?.55:0,me.hurt>0?.06:0,0);if(I.mats.acc)I.mats.acc.emissive.copy(I.mats.skin.emissive);I.mats.eye.emissive.setHex(me.atk>0?0xff3a10:0xff9a20);
+    meRing.position.set(0,groundY(me.x,me.y,Lm)+Lm*.02,0);meRing.scale.setScalar(Lm*.55);meRing.visible=!me.dead}
+  // babies
+  for(const k of me.kids){const Lk=kidLen(k)*clamp(k.born*2.5,0,1);if(Lk<1)continue;let I=k._i;if(!I||I.owner!==k||I.sp!==me.sp){if(I)relInst(I);I=k._i=getInst(me.sp,k);I.fade=1}I.stamp=stamp;
+    place(I,k.x,k.y,Lk,k.yaw);pose(I,{ph:k.ph,mv:k.mv,jaw:k.jaw,atk:0,angry:false},t+3);setOpacity(I,1)}
+  for(const I of [...liveInst])if(I.stamp!==stamp)relInst(I);
+  // target ring
+  if(tgt){const Lt=tgt.ang!==undefined?fishLen(tgt.size):len(tgt.size);tgtRing.visible=true;tgtRing.position.set(wd(tgt.x-cam.x),groundY(tgt.x,tgt.y,Lt)+Lt*.02,wd(tgt.y-cam.y));tgtRing.scale.setScalar(Lt*.6);tgtRing.material.opacity=.55+.3*Math.sin(t*8)}else tgtRing.visible=false;
+  // plants
+  for(const p of world.plants){const H=plantH(p.size);if(!near(p.x,p.y,H)){continue}
+    const m=staticFor(p,()=>{const mm=new THREE.Mesh(plantGeo[plantKind(p.size)],plantMats[p.v%4]);mm.castShadow=true;mm.receiveShadow=true;return mm});
+    const sc2=H/100*(p.eaten>0?p.eaten/.6:1)*(p.size<=2?.7:1);m.position.set(wd(p.x-cam.x),heightAt(p.x,p.y)-H*.02,wd(p.y-cam.y));m.scale.set(sc2*p.f,sc2,sc2);m.rotation.y=p.rot+Math.sin(t*.8+p.id)*.02;m.visible=sc2>.002}
+  // fish
+  for(const f of world.fish){const fl=fishLen(f.size);if(!near(f.x,f.y,fl))continue;
+    const m=staticFor(f,()=>{const mm=new THREE.Mesh(fishGeos[f.v],fishMat);mm.castShadow=false;return mm});
+    const jumpH=f.jump>0?Math.sin((1-f.jump/.9)*Math.PI)*fl*.9:0,sw=Math.sin(t*10+f.id)*.25*(f.sp?1:.3);
+    m.position.set(wd(f.x-cam.x),f.dead?0:-fl*.16+jumpH,wd(f.y-cam.y));m.scale.setScalar(fl/100);
+    m.rotation.set(f.dead?Math.PI:0,-f.ang+sw*.4,jumpH?Math.cos((1-f.jump/.9)*Math.PI)*.6:0);m.visible=!(f.dead&&!f.meal&&f.dead<=0)}
+  for(const [o,m] of statics)if(m.userData.stamp!==stamp){scene.remove(m);statics.delete(o);o._s=null}
+  // egg
+  if(world.egg){const e=world.egg,s=len(MAXS)*.22,X=wd(e.x-cam.x),Z=wd(e.y-cam.y),gy=heightAt(e.x,e.y);eggMesh.visible=eggGlow.visible=true;
+    eggMesh.position.set(X,gy,Z);eggMesh.scale.setScalar(s*1.3);eggMesh.rotation.z=e.hatching?Math.sin(e.t*28)*.12*Math.min(1,e.t):0;
+    eggGlow.position.set(X,gy+s*.8,Z);eggGlow.scale.setScalar(s*4.5*(1+.08*Math.sin(t*4)))}else eggMesh.visible=eggGlow.visible=false;
+  renderer.render(scene,camera);
+}
+function badge(sx,sy,txt,col,r){const c=ctx;c.fillStyle="rgba(0,0,0,.55)";c.beginPath();c.arc(sx,sy+1.5,r+2,0,TAU);c.fill();c.fillStyle=col;c.beginPath();c.arc(sx,sy,r,0,TAU);c.fill();
+  c.fillStyle="#fff";c.font=`800 ${Math.round(r*1.25)}px "Baloo 2",system-ui,sans-serif`;c.textAlign="center";c.textBaseline="middle";c.fillText(txt,sx,sy+1)}
+function overlay(){
+  const c=ctx;c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,cw,ch);
+  const on=p=>!p.behind&&p.x>-40&&p.x<cw+40&&p.y>-40&&p.y<ch+40;
+  // size badges
+  if(!me.dead){
+    for(const e of world.dinos){if(e.state==="dead"||e.size<me.size-2)continue;const Ld=len(e.size),p=toScr(e.x,e.y,groundY(e.x,e.y,Ld)+tpl(e.sp).top/100*Ld*1.02);if(!on(p))continue;
+      const col=e.size<me.size?"#3c9a3a":e.size===me.size?"#d39b18":"#c0392b";badge(p.x,p.y-14,e.size,col,11);
+      if(e.dmg>0){const left=needed(e)-e.dmg;for(let k=0;k<needed(e);k++){c.fillStyle=k<left?"#ff4a2a":"rgba(255,255,255,.25)";c.beginPath();c.arc(p.x+(k-(needed(e)-1)/2)*10,p.y-32,3.5,0,TAU);c.fill()}}}
+    if(SP[me.sp].meat)for(const f of world.fish){if(f.dead||f.size<me.size-1)continue;const fl=fishLen(f.size),p=toScr(f.x,f.y,fl*.3);if(!on(p))continue;badge(p.x,p.y-12,f.size,f.size<me.size?"#3c9a3a":f.size===me.size?"#d39b18":"#c0392b",9)}
+    else for(const p0 of world.plants){if(p0.eaten||p0.size<me.size)continue;const H=plantH(p0.size)*(p0.size<=2?.55:1.15),p=toScr(p0.x,p0.y,heightAt(p0.x,p0.y)+H);if(!on(p))continue;badge(p.x,p.y-12,p0.size,p0.size===me.size?"#3c9a3a":"#c0392b",10)}
+  }
+  for(const k of me.kids){if(k.born<.4)continue;const Lk=kidLen(k),p=toScr(k.x,k.y,groundY(k.x,k.y,Lk)+tpl(me.sp).top/100*Lk);if(!on(p))continue;c.fillStyle="#ff7a9a";c.font=`${Math.round(clamp(Lk*p.ppu*.22,12,22))}px sans-serif`;c.textAlign="center";c.fillText("♥",p.x,p.y-6)}
+  // effects
+  for(const q of fx){
+    if(q.k==="p"){const p=toScr(q.x,q.y,q.g+q.h);if(p.behind)continue;c.globalAlpha=clamp(q.t*2,0,1);c.fillStyle=q.col;c.beginPath();c.arc(p.x,p.y,Math.max(1.2,q.r*p.ppu),0,TAU);c.fill();c.globalAlpha=1}
+    else if(q.k==="tap"){if(!q.o)continue;const Lo=q.o.ang!==undefined?fishLen(q.o.size):q.o.sp?len(q.o.size):plantH(q.o.size)*.8,p=toScr(q.o.x,q.o.y,groundY(q.o.x,q.o.y,Lo)),a=clamp(q.t/.5,0,1);if(p.behind)continue;
+      c.strokeStyle=`rgba(255,210,120,${a})`;c.lineWidth=3;c.beginPath();c.ellipse(p.x,p.y,Lo*p.ppu*(.75-.2*a),Lo*p.ppu*(.75-.2*a)*Math.sin(EL),0,0,TAU);c.stroke()}
+    else if(q.k==="star"){const p=toScr(q.x+q.vx*(1.2-q.t),q.y+q.vy*(1.2-q.t),q.g+q.h+q.vh*(1.2-q.t)-len(me.size)*2*(1.2-q.t)**2);if(p.behind)continue;c.globalAlpha=clamp(q.t,0,1);c.fillStyle="#ffd25a";c.font=`${Math.round(18+len(me.size)*p.ppu*.1)}px sans-serif`;c.textAlign="center";c.fillText("★",p.x,p.y);c.globalAlpha=1}
+    else if(q.k==="slash"){const p=toScr(q.x,q.y,groundY(q.x,q.y,len(me.size))+q.h);if(p.behind)continue;const s=q.s*p.ppu,a=clamp(q.t/.25,0,1);c.save();c.translate(p.x,p.y);c.scale(q.f,1);c.strokeStyle=`rgba(255,240,220,${a})`;c.lineCap="round";
+      for(let k=-1;k<=1;k++){c.lineWidth=Math.max(2,s*.06);c.beginPath();c.moveTo(-s*.4+k*s*.22,-s*.45);c.quadraticCurveTo(k*s*.22+s*.1,0,-s*.2+k*s*.22,s*.45);c.stroke()}
+      c.strokeStyle=`rgba(200,30,20,${a*.8})`;c.lineWidth=Math.max(1,s*.025);for(let k=-1;k<=1;k++){c.beginPath();c.moveTo(-s*.4+k*s*.22,-s*.45);c.quadraticCurveTo(k*s*.22+s*.1,0,-s*.2+k*s*.22,s*.45);c.stroke()}c.restore()}
+  }
+  c.textAlign="center";c.textBaseline="middle";
+  for(const q of texts){const p=toScr(q.x,q.y,q.g+q.h);if(p.behind)continue;const up=(1.4-q.t)*30;c.globalAlpha=clamp(q.t*2,0,1);c.font=`800 ${Math.round(clamp(cw/38,18,28))}px "Baloo 2",system-ui,sans-serif`;
+    c.lineWidth=4;c.strokeStyle="rgba(0,0,0,.75)";c.strokeText(q.text,p.x,p.y-up);c.fillStyle=q.col;c.fillText(q.text,p.x,p.y-up);c.globalAlpha=1}
+  // scary darkness at the edges, red when something big is hunting you
+  let danger=0;for(const e of world.dinos)if((e.state==="hunt"||e.state==="wind")&&e.size>me.size)danger=Math.max(danger,e.state==="wind"?1:.55);
+  const vg=c.createRadialGradient(cw/2,ch/2,Math.min(cw,ch)*.35,cw/2,ch/2,Math.hypot(cw,ch)*.6);
+  vg.addColorStop(0,"rgba(0,0,0,0)");vg.addColorStop(1,danger?`rgba(120,0,0,${.35+.25*danger*(.6+.4*Math.sin(game.t*10))})`:"rgba(0,0,0,.45)");
+  c.fillStyle=vg;c.fillRect(0,0,cw,ch);
+  if(me.dead){c.fillStyle=`rgba(90,0,0,${clamp(me.deadT*.4,0,.5)})`;c.fillRect(0,0,cw,ch)}
+  // arrow to the egg
+  if(world.egg&&game.state==="play"){const p=toScr(world.egg.x,world.egg.y,heightAt(world.egg.x,world.egg.y));const m=70;if(p.behind||p.x<m||p.x>cw-m||p.y<m+60||p.y>ch-m){
+    const mp=toScr(me.x,me.y,camH);const an=p.behind?Math.atan2(wd(world.egg.y-me.y),wd(world.egg.x-me.x)):Math.atan2(p.y-mp.y,p.x-mp.x);
+    const ax=clamp(cw/2+Math.cos(an)*cw,m,cw-m-(Math.sin(an)>.3&&Math.cos(an)>.3?110:0)),ay=clamp(ch/2+Math.sin(an)*ch,Math.cos(an)<0?150:m+20,ch-m);
+    c.save();c.translate(ax,ay);c.rotate(an);const pulse=1+.12*Math.sin(game.t*6);c.scale(pulse,pulse);
+    c.fillStyle="#4aa8ff";c.strokeStyle="#fff";c.lineWidth=4;c.beginPath();c.moveTo(34,0);c.lineTo(-14,-24);c.lineTo(-4,0);c.lineTo(-14,24);c.closePath();c.stroke();c.fill();c.restore()}}
+  if(location.search.includes("fps")){c.fillStyle="#fff";c.font="14px monospace";c.textAlign="left";c.fillText(`${fps.toFixed(0)} fps  calls ${renderer.info.render.calls}  tris ${(renderer.info.render.triangles/1000).toFixed(0)}k`,12,ch-16)}
+}
+
+/* debug hooks for testing in a browser console */
+window.DINO={world,game,isWater,get me(){return me},toScr:(x,y,h)=>toScr(x,y,h||0),hitTest,start,grow:()=>{me.food=3;grow()},setSize:s=>{me.size=s;me.food=0;hud()},attack,populate,renderer,scene,camera,THREE,spawnDino,tpl,makeInst,pose};
+requestAnimationFrame(frame);
+
+</script>
+</body>
+</html>
