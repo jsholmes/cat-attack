@@ -219,3 +219,20 @@ const meRing=new THREE.Mesh(ringGeo,new THREE.MeshBasicMaterial({color:0x78c8ff,
 const tgtRing=new THREE.Mesh(ringGeo,new THREE.MeshBasicMaterial({color:0xffd278,transparent:true,opacity:.85,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2}));scene.add(tgtRing);
 const statics=new Map(); // entity -> mesh for plants and fish
 function staticFor(o,make){let m=o._s;if(!m){m=make();o._s=m;scene.add(m);statics.set(o,m)}m.userData.stamp=stamp;return m}
+
+/* ========================= solid rocks and tree trunks =========================
+   Boulders, rocks and tree trunks are solid: a dinosaur that walks into one slides around it.
+   A rock too small to see at your size (or lower than your knee) can be stepped over. */
+const obsCache=new Map();
+function obstacles512(i,j){i=((i%NC)+NC)%NC;j=((j%NC)+NC)%NC;const key=i*NC+j;let L=obsCache.get(key);if(L)return L;
+  L=[];for(const d of decoFor512(i,j)){const r=d.type==="boulder"?d.s*.42*.95:d.type==="rock"?d.s*.45*.9:d.type==="tree"?d.s*.42*.04:0;if(r)L.push({x:i*CH+d.x,y:j*CH+d.y,r,s:d.s,type:d.type})}
+  obsCache.set(key,L);if(obsCache.size>3000)obsCache.delete(obsCache.keys().next().value);return L}
+function collide(o,L){
+  const br=L*.32,lod=lodFor(me.size),minS=lod?LODS[lod]*.022:0,ci=Math.floor(o.x/CH),cj=Math.floor(o.y/CH);
+  for(let j=cj-1;j<=cj+1;j++)for(let i=ci-1;i<=ci+1;i++)for(const ob of obstacles512(i,j)){
+    if(ob.type==="rock"&&(ob.s<minS||ob.r<L*.12))continue;
+    const dx=wd(o.x-ob.x),dy=wd(o.y-ob.y),m=ob.r+br;if(Math.abs(dx)>m||Math.abs(dy)>m)continue;const d=Math.hypot(dx,dy);if(d>=m)continue;
+    const nx=d>.001?dx/d:1,ny=d>.001?dy/d:0;o.x=wrap(o.x+nx*(m-d));o.y=wrap(o.y+ny*(m-d));
+    // stop pushing into the rock, keep sliding along it
+    if(o.vx!==undefined){const vn=o.vx*nx+o.vy*ny;if(vn<0){o.vx-=vn*nx;o.vy-=vn*ny}}}
+}

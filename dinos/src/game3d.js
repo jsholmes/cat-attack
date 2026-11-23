@@ -184,7 +184,7 @@ function kidStep(dt){
         if(Math.random()<dt*6)burst(m.x,m.y,m.sp||m.ang!==undefined?"#9a2014":"#5c9a32",2,kL*.012,kL*.1);
         if(k.eatT>1.4){finishMeal(m);k.meal=null;k.eatT=0;k.meals=(k.meals||0)+1;sfx.munch();say(k.x,k.y,"Yum! ♥","#ff9ab2",kL)}return}
       const sp=pspeed(me.size)*1.1,kk=Math.min(1,dt*6);k.vx=lerp(k.vx,dx/d*sp,kk);k.vy=lerp(k.vy,dy/d*sp,kk);
-      k.x=wrap(k.x+k.vx*dt);k.y=wrap(k.y+k.vy*dt);k.yaw=angTo(k.yaw,Math.atan2(k.vy,k.vx),dt*8);k.mv=1;k.ph+=dt*Math.hypot(k.vx,k.vy)/kL*5.5;return}
+      k.x=wrap(k.x+k.vx*dt);k.y=wrap(k.y+k.vy*dt);collide(k,kL);k.yaw=angTo(k.yaw,Math.atan2(k.vy,k.vx),dt*8);k.mv=1;k.ph+=dt*Math.hypot(k.vx,k.vy)/kL*5.5;return}
     // line up behind the parent, a little to the side, one behind another
     const back=L*.55+kL*.6+i*kL*.85,side=(i%2?1:-1)*kL*.35;
     const tx=me.x-hx*back-hy*side,ty=me.y-hy*back+hx*side;
@@ -192,7 +192,7 @@ function kidStep(dt){
     if(d>L*14){k.x=wrap(tx);k.y=wrap(ty);return}
     const sp=d<kL*.25?0:Math.min(pspeed(me.size)*1.25,d*3);
     const kk=Math.min(1,dt*6);k.vx=lerp(k.vx,d?dx/d*sp:0,kk);k.vy=lerp(k.vy,d?dy/d*sp:0,kk);
-    k.x=wrap(k.x+k.vx*dt);k.y=wrap(k.y+k.vy*dt);
+    k.x=wrap(k.x+k.vx*dt);k.y=wrap(k.y+k.vy*dt);collide(k,kL);
     const v=Math.hypot(k.vx,k.vy);k.yaw=angTo(k.yaw,v>kL*.2?Math.atan2(k.vy,k.vx):me.yaw,dt*6);
     k.mv=clamp(v/(kL*2),0,1);k.ph+=dt*v/kL*5.5;
   });
@@ -223,7 +223,7 @@ function aiStep(e,dt){
   const S=SP[e.sp],L=len(e.size),nat=L*2.3;
   const dx=wd(me.x-e.x),dy=wd(me.y-e.y),d=Math.hypot(dx,dy)||1;
   e.huntCd-=dt;e.scared-=dt;if(e.state!=="wind")e.jaw=Math.max(0,e.jaw-dt*3);
-  if(e.stun>0){e.stun-=dt;e.x=wrap(e.x+e.kx*dt);e.y=wrap(e.y+e.ky*dt);e.kx*=.88;e.ky*=.88;e.mv=0;return}
+  if(e.stun>0){e.stun-=dt;e.x=wrap(e.x+e.kx*dt);e.y=wrap(e.y+e.ky*dt);collide(e,L);e.kx*=.88;e.ky*=.88;e.mv=0;return}
   const alive=!me.dead&&game.state==="play",threat=e.size>=me.size;
   let mx=0,my=0,spd=0;
   if(e.state==="wind"){
@@ -252,7 +252,7 @@ function aiStep(e,dt){
   }
   e.wet=isWater(e.x,e.y);if(e.wet)spd*=.6;
   const k=Math.min(1,dt*5);e.vx=lerp(e.vx,mx*spd,k);e.vy=lerp(e.vy,my*spd,k);
-  e.x=wrap(e.x+e.vx*dt);e.y=wrap(e.y+e.vy*dt);
+  e.x=wrap(e.x+e.vx*dt);e.y=wrap(e.y+e.vy*dt);collide(e,L);
   const v=Math.hypot(e.vx,e.vy);if(Math.abs(e.vx)>nat*.05&&e.state!=="wind")e.face=e.vx>0?1:-1;
   if(v>nat*.05&&e.state!=="wind")e.yaw=angTo(e.yaw,Math.atan2(e.vy,e.vx),dt*5);
   e.mv=clamp(v/(nat*.6),0,1);e.ph+=dt*v/L*5.5;
@@ -382,7 +382,7 @@ function step(dt){
   me.wet=isWater(me.x,me.y);
   const sp=pspeed(me.size)*f*(me.wet?.6:1),k=Math.min(1,dt*8);
   me.vx=lerp(me.vx,mx*sp,k);me.vy=lerp(me.vy,my*sp,k);
-  me.x=wrap(me.x+(me.vx+me.kx)*dt);me.y=wrap(me.y+(me.vy+me.ky)*dt);me.kx*=.86;me.ky*=.86;
+  me.x=wrap(me.x+(me.vx+me.kx)*dt);me.y=wrap(me.y+(me.vy+me.ky)*dt);me.kx*=.86;me.ky*=.86;collide(me,len(me.size));
   const v=Math.hypot(me.vx,me.vy);
   if(v>len(me.size)*.15&&me.atk<=0){me.yaw=angTo(me.yaw,Math.atan2(me.vy,me.vx),dt*9);me.face=Math.cos(me.yaw)>=0?1:-1}
   me.mv=clamp(v/(pspeed(me.size)*.5),0,1);me.ph+=dt*v/len(me.size)*5.5;
@@ -518,5 +518,5 @@ function overlay(){
 }
 
 /* debug hooks for testing in a browser console */
-window.DINO={world,game,isWater,get me(){return me},toScr:(x,y,h)=>toScr(x,y,h||0),hitTest,start,grow:()=>{me.food=3;grow()},setSize:s=>{me.size=s;me.food=0;hud()},attack,populate,renderer,scene,camera,THREE,spawnDino,tpl,makeInst,pose};
+window.DINO={world,game,isWater,get me(){return me},toScr:(x,y,h)=>toScr(x,y,h||0),hitTest,start,collide,obstacles512,grow:()=>{me.food=3;grow()},setSize:s=>{me.size=s;me.food=0;hud()},attack,populate,renderer,scene,camera,THREE,spawnDino,tpl,makeInst,pose};
 requestAnimationFrame(frame);
