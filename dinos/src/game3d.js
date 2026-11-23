@@ -396,7 +396,7 @@ function start(sp){
   bookOf(sp).played++;bookOf(sp).best=Math.max(bookOf(sp).best,1);store();
   banner(SP[sp].name.replace(/\u00AD/g,"").toUpperCase(),MOVES[sp]?"Special move, "+MOVES[sp].name+": "+MOVES[sp].tip:SP[sp].meat?"Meat eater: tap dinos your size to attack and eat them":"Plant eater: eat plants your size, tap a dino to fight it",4);
 }
-function togglePause(){if(game.state==="play"){game.state="paused";fingers.clear();show("paused")}else if(game.state==="paused"){game.state="play";show(null)}}
+function togglePause(){if(game.state==="play"){game.state="paused";fingers.clear();show("paused");$("pauseNote").textContent=net.on?"You are hidden from the other players while you are paused, so nobody can eat you. The world keeps going for them.":"Everything stops until you tap Keep playing."}else if(game.state==="paused"){game.state="play";show(null)}}
 $("menuBtn").onclick=togglePause;$("resumeBtn").onclick=togglePause;$("quitBtn").onclick=()=>openPick(false);
 $("againBtn").onclick=()=>start(game.lastSp);$("pickBtn").onclick=()=>openPick(false);
 

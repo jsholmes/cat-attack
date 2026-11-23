@@ -10,6 +10,11 @@ head=re.sub(r'<button class="claw".*?</button>\n','',head,flags=re.S)
 # the 3D game is called Big Chomp (2026-11-23); the URL stays /dinos/
 for o,n in [('<title>Dino Attack</title>','<title>Big Chomp</title>'),('content="Dino Attack"','content="Big Chomp"'),('aria-label="Dino Attack game"','aria-label="Big Chomp game"'),('<h1>DINO <em>ATTACK</em></h1>','<h1>BIG <em>CHOMP</em></h1>')]:
     assert o in head,o;head=head.replace(o,n)
+# a bigger, labelled pause button, and a note on the pause screen about the shared world
+for o,n in [('<button class="menu" id="menuBtn" aria-label="Pause" hidden>&#10074;&#10074;</button>','<button class="menu" id="menuBtn" aria-label="Pause" hidden><span>&#10074;&#10074;</span> Pause</button>'),
+            ('  <h1>PAUSED</h1>\n','  <h1>PAUSED</h1>\n  <h2 id="pauseNote">Everything stops until you tap Keep playing.</h2>\n')]:
+    assert o in head,o;head=head.replace(o,n)
+head=head.replace('</style>','.menu{width:auto;height:52px;padding:0 16px;display:flex;align-items:center;gap:8px;font-family:var(--body);font-weight:800;font-size:18px;background:#3a3226;border:2px solid var(--amber);box-shadow:0 4px 0 #17130d}.menu span{font-size:16px;letter-spacing:-2px}\n</style>',1)
 src=lambda n:open(os.path.join(here,'src',n)).read()
 lines=orig
 def block(a,b): return '\n'.join(lines[a-1:b])
