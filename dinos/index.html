@@ -401,8 +401,9 @@ Object.assign(SP,{
  argent:{name:"Argentino\u00ADsaurus",meat:false,col:{dark:"#4a3e34",mid:"#806a54",belly:"#c0ac8e",far:"#3e342c",armor:"#5a4a3a"}},
  amarga:{name:"Amarga\u00ADsaurus",meat:false,col:{dark:"#3e3428",mid:"#78603e",belly:"#bea67e",far:"#332a20",spine:"#9a4422",spine2:"#e8c89a"}},
 });
-PLAYABLE.splice(PLAYABLE.indexOf("carno")+1,0,"giga","bary","utah","ovi");PLAYABLE.push("diplo","styra","apato","argent","amarga");
-MEATS.push("giga","bary","utah","ovi");HERBS.push("diplo","styra","styra","apato","argent","amarga");
+Object.assign(SP,{nemi:{name:"Nemicolo\u00ADpterus",meat:true,fly:true,col:{dark:"#3a2a22",mid:"#7a5236",belly:"#dcc6a4",far:"#2e221c",wing:"#5e3420",wing2:"#d08850"}}});
+PLAYABLE.splice(PLAYABLE.indexOf("carno")+1,0,"giga","bary","utah","ovi","nemi");PLAYABLE.push("diplo","styra","apato","argent","amarga");
+MEATS.push("giga","bary","utah","ovi","nemi");HERBS.push("diplo","styra","styra","apato","argent","amarga");
 
 /* ----- the species ----- */
 const SPEC={
@@ -582,6 +583,20 @@ const SPEC={
    for(let x=5;x<=34;x+=2.6){const a=m.at(x),bn=m.boneX(x),t=(x-5)/29,h=6+16*Math.sin(Math.PI*Math.min(1,t*1.15));
      for(const s of[1,-1])m.loft("acc",[[x,a.y+a.h*.6,s*1.1,.9,.9],[x-3,a.y+a.h+h*.6,s*1.8,.55,.55],[x-6,a.y+a.h+h,s*2.4,.12,.12]],{bone:bn,rs:5,sub:2,color:(oy,p)=>mixC(s0,s1,(p[1]-a.y)/(a.h+h))})}
    for(let x=-30;x<4;x+=4){const a=m.at(x);m.cone("bone",m.boneX(x),[x,a.y+a.h*.8,0],[x-1,a.y+a.h+4,0],1.2,col3("#d8c8a4"),5)}}}),
+ // a tiny flying reptile (pterosaur): biped body plan plus two wings on their own bones that flap
+ nemi:()=>biped("nemi",{open:.35,
+  body:[[-34,30,.4,.4],[-28,30,1.6,1.6],[-20,30,4,4],[-10,31,7,7],[0,32,7.6,7.6],[8,34,6,6],[14,40,3.6,3.6],[19,46,3,3],[23,49,3,3]],tail:[3,2,1],neck:[5,6],
+  skull:[[22,50,3.6,4],[28,51,3.6,4.2],[36,49,2.4,2.6],[46,46,1.3,1.4],[52,44.6,.4,.5]],jaw:{h:[26,47.4],pts:[[25,47.4,3,1.4],[38,45.6,1.6,.9],[50,44.4,.4,.4]]},eye:[28,52,3.6,1.6],
+  leg:{hip:[-12,26,4],knee:[-18,16],ankle:[-24,8],ball:[-26,3],r:[3,1.6,1,.8],toe:3,claw:true},
+  extra:m=>{const c=SP.nemi.col,w0=col3(c.wing),w1=col3(c.wing2);
+   for(const s of[1,-1]){const nm="wing"+(s>0?"L":"R");m.bone(nm,"body",6,35,4*s);
+    const q=(a,b,cc,t)=>a.map((v,i)=>(1-t)*(1-t)*v+2*(1-t)*t*b[i]+t*t*cc[i]);
+    const tip=[-20,35,104*s],wr=[16,37,48*s],L2=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t),lead=u=>u<.45?L2([8,35,4*s],wr,u/.45):L2(wr,tip,(u-.45)/.55),trail=u=>q([-26,30,5*s],[-22,33,44*s],tip,u);
+    m.fin("acc",0,1,14,trail,lead,(v,k)=>mixC(w1,w0,.35+.65*v).multiplyScalar(.85+.3*Math.abs(Math.sin(k*1.7))),nm);
+    const arm=[];for(let i=0;i<=6;i++){const p=lead(i/6);arm.push([p[0],p[1]+.4,p[2],1.5*(1-i/7)+.2,1.5*(1-i/7)+.2])}
+    m.loft("skin",arm,{bone:nm,rs:8,sub:2});
+    for(let i=0;i<3;i++)m.cone("bone",nm,[15,37,(46+i*1.4)*s],[19+i,35,(47+i*1.6)*s],.5,m.boneCol,5)}
+   m.cone("bone","head",[40,48,0],[52.6,44.4,0],2.2,col3("#4a3a2a"),8)}}),
 };
 
 /* ========================= textures ========================= */
@@ -728,7 +743,7 @@ function tpl(sp){if(TPL[sp])return TPL[sp];const T=SPEC[sp]();
     dark:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.35}),
     acc:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.7,side:THREE.DoubleSide,bumpMap:scaleTex,bumpScale:bump*.5})};
   T.inv=T.bones.map(b=>new THREE.Matrix4().makeTranslation(-b.p[0],-b.p[1],-b.p[2]));
-  const bb=T.geos.skin.boundingBox;T.top=bb.max.y;T.box=bb;
+  T.fly=!!SP[sp].fly;const bb=T.geos.skin.boundingBox;T.top=bb.max.y+(T.fly?55:0);T.box=bb;
   return TPL[sp]=T}
 const pools={},liveInst=new Set();let stamp=0;
 const ringGeo=(()=>{const g=new THREE.RingGeometry(.86,1,48);g.rotateX(-Math.PI/2);return g})();
@@ -759,7 +774,11 @@ function pose(I,a,t){
   B.neck0.rotation.y=Math.sin(t*.6+I.g.id)*.06*(1-mv);
   B.head.rotation.z=look*.5+(a.angry?Math.sin(t*9)*.015:0);
   B.jaw.rotation.z=-a.jaw*T.open;
-  if(T.kind==="biped"){
+  if(T.fly){ // flapping wings, legs tucked back
+    const fs=a.mv>.1?9:6,fl=Math.sin(t*fs+I.g.id);
+    B.wingL.rotation.x=fl*.5+.08;B.wingR.rotation.x=-fl*.5-.08;B.body.position.y=R.body.y-fl*2.2;
+    for(const nm of["L","R"]){B["thigh"+nm].rotation.z=-.5;B["shin"+nm].rotation.z=.2;B["foot"+nm].rotation.z=.3}
+  }else if(T.kind==="biped"){
     for(const [s,nm] of [[0,"L"],[Math.PI,"R"]]){const p=ph+s,sw=Math.sin(p)*.6*mv,lift=Math.max(0,Math.cos(p))*mv;
       B["thigh"+nm].rotation.z=sw+lift*.3;B["shin"+nm].rotation.z=-lift*.85;B["foot"+nm].rotation.z=-(sw+lift*.3-lift*.85)-lift*.35;
       if(B["arm"+nm])B["arm"+nm].rotation.z=Math.sin(p)*.12*mv+a.atk*.7+(a.angry?.15:0)}
@@ -769,7 +788,7 @@ function pose(I,a,t){
       B["fthigh"+nm].rotation.z=Math.sin(pf)*.38*mv;B["fshin"+nm].rotation.z=-Math.max(0,Math.cos(pf))*.55*mv}}
 }
 // place an instance in the world: x,y world spot, L body length, yaw heading
-function place(I,x,y,L,yaw,lift){const X=wd(x-cam.x),Z=wd(y-cam.y);I.g.position.set(X,groundY(x,y,L)+(lift||0),Z);I.g.scale.setScalar(L/100);I.g.rotation.y=-yaw}
+function place(I,x,y,L,yaw,lift){const X=wd(x-cam.x),Z=wd(y-cam.y);I.g.position.set(X,groundY(x,y,L)+(lift||0)+(I.T.fly?L*.55:0),Z);I.g.scale.setScalar(L/100);I.g.rotation.y=-yaw}
 
 /* ========================= plants, fish, egg (static models) ========================= */
 const plantGeo=(()=>{
@@ -814,6 +833,7 @@ function obstacles512(i,j){i=((i%NC)+NC)%NC;j=((j%NC)+NC)%NC;const key=i*NC+j;le
   L=[];for(const d of decoFor512(i,j)){const r=d.type==="boulder"?d.s*.42*.95:d.type==="rock"?d.s*.45*.9:d.type==="tree"?d.s*.42*.04:0;if(r)L.push({x:i*CH+d.x,y:j*CH+d.y,r,s:d.s,type:d.type})}
   obsCache.set(key,L);if(obsCache.size>3000)obsCache.delete(obsCache.keys().next().value);return L}
 function collide(o,L){
+  if(o.sp&&SP[o.sp].fly)return; // flyers go over rocks and trees
   const br=L*.32,lod=lodFor(me.size),minS=lod?LODS[lod]*.022:0,ci=Math.floor(o.x/CH),cj=Math.floor(o.y/CH);
   for(let j=cj-1;j<=cj+1;j++)for(let i=ci-1;i<=ci+1;i++)for(const ob of obstacles512(i,j)){
     if(ob.type==="rock"&&(ob.s<minS||ob.r<L*.12))continue;
@@ -849,6 +869,7 @@ const sfx={
 
 /* ========================= plant eater special moves ========================= */
 const MOVES={
+ nemi:{name:"FLY",tip:"You fly over rocks, trees and water. Swoop down on dinos your size!",fast:1.15},
  anky:{name:"TAIL CLUB",tip:"Smack dinos with your tail club. Small biters just bounce off your armor!",dmg:2,tail:true,knock:2,armor:true},
  stego:{name:"SPIKY TAIL",tip:"Your tail spikes hit twice as hard, and dinos that bite you get stabbed!",dmg:2,tail:true,knock:1.6,spikes:true},
  tri:{name:"CHARGE",tip:"Tap a dino far away to charge it with your horns!",charge:true,knock:1.4},
@@ -1227,7 +1248,7 @@ const cardCvs=[];
 for(const sp of PLAYABLE){
   const b=document.createElement("button");b.className="card";b.setAttribute("aria-label",SP[sp].name.replace(/\u00AD/g,""));
   const c=document.createElement("canvas");c.width=360;c.height=240;b.append(c);
-  const n=document.createElement("b");n.textContent=SP[sp].name.replace(/\u00AD/g,"").replace(/(saurus|taurus|raptor|mimus|odon|ceratops)$/,"\u00AD$1");b.append(n);
+  const n=document.createElement("b");n.textContent=SP[sp].name.replace(/\u00AD/g,"").replace(/(saurus|taurus|raptor|mimus|odon|ceratops|pterus)$/,"\u00AD$1");b.append(n);
   const d=document.createElement("span");d.className=SP[sp].meat?"meat":"plant";d.textContent=SP[sp].meat?"Meat eater":"Plant eater";b.append(d);
   if(MOVES[sp]){const mv=document.createElement("em");mv.className="move";mv.textContent=moveLabel(sp);b.append(mv)}
   if(UNLOCK[sp]){const nd=document.createElement("small");nd.className="need";nd.textContent=UNLOCK[sp].need+" to unlock";b.append(nd)}
@@ -1318,7 +1339,7 @@ function step(dt){
     if(sd>10&&gp){const dx=gp.x,dy=gp.z,d=Math.hypot(dx,dy);if(d>0){mx=dx/d;my=dy/d;f=clamp(sd/110,.3,1)}}}
   else{const kx=(keys["arrowright"]||keys.d?1:0)-(keys["arrowleft"]||keys.a?1:0),ky=(keys["arrowdown"]||keys.s?1:0)-(keys["arrowup"]||keys.w?1:0);if(kx||ky){const d=Math.hypot(kx,ky);mx=kx/d;my=ky/d;f=1}}
   me.wet=isWater(me.x,me.y);
-  const sp=pspeed(me.size)*f*(me.wet?.6:1)*((MOVES[me.sp]&&MOVES[me.sp].fast)||1),k=Math.min(1,dt*8);
+  const sp=pspeed(me.size)*f*(me.wet&&!SP[me.sp].fly?.6:1)*((MOVES[me.sp]&&MOVES[me.sp].fast)||1),k=Math.min(1,dt*8);
   me.vx=lerp(me.vx,mx*sp,k);me.vy=lerp(me.vy,my*sp,k);
   me.x=wrap(me.x+(me.vx+me.kx)*dt);me.y=wrap(me.y+(me.vy+me.ky)*dt);me.kx*=.86;me.ky*=.86;collide(me,len(me.size));
   const v=Math.hypot(me.vx,me.vy);

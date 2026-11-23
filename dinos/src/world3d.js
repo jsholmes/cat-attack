@@ -142,7 +142,7 @@ function tpl(sp){if(TPL[sp])return TPL[sp];const T=SPEC[sp]();
     dark:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.35}),
     acc:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.7,side:THREE.DoubleSide,bumpMap:scaleTex,bumpScale:bump*.5})};
   T.inv=T.bones.map(b=>new THREE.Matrix4().makeTranslation(-b.p[0],-b.p[1],-b.p[2]));
-  const bb=T.geos.skin.boundingBox;T.top=bb.max.y;T.box=bb;
+  T.fly=!!SP[sp].fly;const bb=T.geos.skin.boundingBox;T.top=bb.max.y+(T.fly?55:0);T.box=bb;
   return TPL[sp]=T}
 const pools={},liveInst=new Set();let stamp=0;
 const ringGeo=(()=>{const g=new THREE.RingGeometry(.86,1,48);g.rotateX(-Math.PI/2);return g})();
@@ -173,7 +173,11 @@ function pose(I,a,t){
   B.neck0.rotation.y=Math.sin(t*.6+I.g.id)*.06*(1-mv);
   B.head.rotation.z=look*.5+(a.angry?Math.sin(t*9)*.015:0);
   B.jaw.rotation.z=-a.jaw*T.open;
-  if(T.kind==="biped"){
+  if(T.fly){ // flapping wings, legs tucked back
+    const fs=a.mv>.1?9:6,fl=Math.sin(t*fs+I.g.id);
+    B.wingL.rotation.x=fl*.5+.08;B.wingR.rotation.x=-fl*.5-.08;B.body.position.y=R.body.y-fl*2.2;
+    for(const nm of["L","R"]){B["thigh"+nm].rotation.z=-.5;B["shin"+nm].rotation.z=.2;B["foot"+nm].rotation.z=.3}
+  }else if(T.kind==="biped"){
     for(const [s,nm] of [[0,"L"],[Math.PI,"R"]]){const p=ph+s,sw=Math.sin(p)*.6*mv,lift=Math.max(0,Math.cos(p))*mv;
       B["thigh"+nm].rotation.z=sw+lift*.3;B["shin"+nm].rotation.z=-lift*.85;B["foot"+nm].rotation.z=-(sw+lift*.3-lift*.85)-lift*.35;
       if(B["arm"+nm])B["arm"+nm].rotation.z=Math.sin(p)*.12*mv+a.atk*.7+(a.angry?.15:0)}
@@ -183,7 +187,7 @@ function pose(I,a,t){
       B["fthigh"+nm].rotation.z=Math.sin(pf)*.38*mv;B["fshin"+nm].rotation.z=-Math.max(0,Math.cos(pf))*.55*mv}}
 }
 // place an instance in the world: x,y world spot, L body length, yaw heading
-function place(I,x,y,L,yaw,lift){const X=wd(x-cam.x),Z=wd(y-cam.y);I.g.position.set(X,groundY(x,y,L)+(lift||0),Z);I.g.scale.setScalar(L/100);I.g.rotation.y=-yaw}
+function place(I,x,y,L,yaw,lift){const X=wd(x-cam.x),Z=wd(y-cam.y);I.g.position.set(X,groundY(x,y,L)+(lift||0)+(I.T.fly?L*.55:0),Z);I.g.scale.setScalar(L/100);I.g.rotation.y=-yaw}
 
 /* ========================= plants, fish, egg (static models) ========================= */
 const plantGeo=(()=>{
@@ -228,6 +232,7 @@ function obstacles512(i,j){i=((i%NC)+NC)%NC;j=((j%NC)+NC)%NC;const key=i*NC+j;le
   L=[];for(const d of decoFor512(i,j)){const r=d.type==="boulder"?d.s*.42*.95:d.type==="rock"?d.s*.45*.9:d.type==="tree"?d.s*.42*.04:0;if(r)L.push({x:i*CH+d.x,y:j*CH+d.y,r,s:d.s,type:d.type})}
   obsCache.set(key,L);if(obsCache.size>3000)obsCache.delete(obsCache.keys().next().value);return L}
 function collide(o,L){
+  if(o.sp&&SP[o.sp].fly)return; // flyers go over rocks and trees
   const br=L*.32,lod=lodFor(me.size),minS=lod?LODS[lod]*.022:0,ci=Math.floor(o.x/CH),cj=Math.floor(o.y/CH);
   for(let j=cj-1;j<=cj+1;j++)for(let i=ci-1;i<=ci+1;i++)for(const ob of obstacles512(i,j)){
     if(ob.type==="rock"&&(ob.s<minS||ob.r<L*.12))continue;
