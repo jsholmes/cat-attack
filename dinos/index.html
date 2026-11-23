@@ -1634,6 +1634,7 @@ const net=(()=>{
     if(m.t==="welcome"){
       if(m.pid===pid)return;
       if(m.now)clockOff=m.now-Date.now();
+      setTimeout(()=>inp&&checkName(),0);
       pid=m.pid;ready=true;
       // start fresh with the server: drop copies from before, renumber my own things into my id range
       for(const id of [...ents.keys()])goneEnt(id);ents.clear();
@@ -1652,6 +1653,7 @@ const net=(()=>{
       return;
     }
     if(m.t==="lb"){lb=m;return}
+    if(m.t==="nm"||m.t==="you")return gotName(m);
     if(m.t==="h")return gotHit(m);
     if(m.t==="k")return gotKill(m);
   }
@@ -1697,6 +1699,8 @@ const net=(()=>{
   function keep(o){if(o.remote)return true;if(!ready)return false;
     for(const P of players.values()){const s=P.s;if(!s||s.playing!==1)continue;if(Math.hypot(wd(o.x-s.x),wd(o.y-s.y))<s.R)return true}return false}
   function reset(){ // a new game started: let go of everything
+    if(inp&&cleanName(inp.value)&&cleanName(inp.value)!==myName()){try{localStorage.setItem("dinoName",cleanName(inp.value))}catch(e){}}
+    if(inp)inp.blur();
     send({t:"hi",name:myName()||"Dino"});send({t:"reset"});
     ents.clear();sent.clear();for(const P of players.values()){P.obj=null}
   }
@@ -1745,20 +1749,56 @@ const net=(()=>{
       document.body.append(panel);
     }
     panel.hidden=$("hud").hidden;
-    const rows=lb.top.map(([n,s,sp])=>`<div style="display:flex;justify-content:space-between;gap:10px;color:${n===(myName()||"Dino")&&me&&s===me.size?"var(--amber)":"var(--ink)"}"><span>${esc(n)}</span><span>${s}</span></div>`).join("");
+    const rows=lb.top.map(([n,s,sp])=>`<div style="display:flex;justify-content:space-between;gap:10px;color:${n===(myNow||myName()||"Dino")&&me&&s===me.size?"var(--amber)":"var(--ink)"}"><span>${esc(n)}</span><span>${s}</span></div>`).join("");
     panel.innerHTML=`<div style="color:#9fe6ff">${lb.n} playing</div>${rows}`;
     if(pickLine)pickLine.textContent=`Online: ${lb.n} ${lb.n===1?"player":"players"} in the world`;
   }
   const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
-  // name box on the pick screen
+  // name box on the pick screen: type a name, see right away if someone playing now already has it, tap OK to take it
+  const cleanName=v=>v.replace(/[^\p{L}\p{N} '\-!]/gu,"").replace(/\s+/g," ").trim().slice(0,14);
+  let inp=null,okBtn=null,nameMsg=null,checkT=0,waitT=0,myNow="";
+  function nameState(kind,text){
+    if(!nameMsg)return;const col={ok:"#8fe06a",bad:"#ff8a6a",wait:"var(--dim)",mine:"#8fe06a"}[kind];
+    nameMsg.textContent=text;nameMsg.style.color=col;
+    inp.style.borderColor=kind==="bad"?"#ff6a4a":kind==="ok"||kind==="mine"?"#6ac04a":"var(--edge)";
+    okBtn.disabled=kind==="bad"||kind==="wait"&&!cleanName(inp.value);okBtn.style.opacity=okBtn.disabled?.45:1;
+    okBtn.textContent=kind==="mine"?"✓":"OK";
+  }
+  function checkName(){
+    const n=cleanName(inp.value);clearTimeout(checkT);clearTimeout(waitT);
+    if(!n)return nameState("wait","Type your name, then tap OK");
+    if(myNow&&n.toLowerCase()===myNow.toLowerCase())return nameState("mine",`✓ You are ${myNow}!`);
+    if(!ready)return nameState("ok","✓ Looks good. Tap OK!");
+    nameState("wait","Checking…");
+    checkT=setTimeout(()=>{send({t:"nm",name:n});
+      // an older server doesn't answer: fall back to the names on the leaderboard
+      waitT=setTimeout(()=>{const taken=lb.top.some(r=>String(r[0]).toLowerCase()===n.toLowerCase());
+        taken?nameState("bad",`✗ Someone is already called ${n}. Try another name!`):nameState("ok",`✓ Nobody is using ${n}. Tap OK!`)},1500)},250);
+  }
+  function takeName(){
+    const n=cleanName(inp.value);if(!n)return;inp.value=n;
+    try{localStorage.setItem("dinoName",n)}catch(e){}
+    inp.blur();
+    if(ready)send({t:"hi",name:n});else{myNow=n;nameState("mine",`✓ You are ${n}!`)}
+  }
+  function gotName(m){ // the server's answer to a check ("nm") or to taking a name ("you")
+    if(m.t==="you"){myNow=m.name;
+      if(inp&&document.activeElement!==inp){if(m.name==="Dino"&&!cleanName(inp.value))return checkName();inp.value=m.name;nameState("mine",`✓ You are ${m.name}!`)}return}
+    if(!inp||cleanName(inp.value)!==m.name)return;clearTimeout(waitT);
+    if(m.mine)nameState("mine",`✓ You are ${m.name}!`);
+    else if(m.ok)nameState("ok",`✓ Nobody is using ${m.name}. Tap OK!`);
+    else nameState("bad",`✗ Someone playing now is already called ${m.name}. Try another name!`);
+  }
   if(!off){
     const box=document.createElement("div");box.style.cssText="display:flex;flex-direction:column;align-items:center;gap:4px";
-    box.innerHTML='<label style="font-weight:800;font-size:18px;color:var(--ink);display:flex;gap:10px;align-items:center">Your name <input id="netName" maxlength="14" autocomplete="off" autocapitalize="words" spellcheck="false" style="font:inherit;font-size:20px;width:11em;padding:4px 10px;border-radius:10px;border:2px solid var(--edge);background:#17130d;color:var(--ink);-webkit-user-select:text;user-select:text;touch-action:manipulation"></label><span id="netLine" style="font-size:15px;color:#9fe6ff">Connecting to the world…</span>';
+    box.innerHTML='<div style="display:flex;gap:8px;align-items:center;font-weight:800;font-size:18px;color:var(--ink)"><label for="netName">Your name</label><input id="netName" maxlength="14" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done" style="font:inherit;font-size:20px;width:10em;padding:4px 10px;border-radius:10px;border:2px solid var(--edge);background:#17130d;color:var(--ink);-webkit-user-select:text;user-select:text;touch-action:manipulation"><button id="netOk" class="btn" style="font-size:18px;padding:6px 16px;border-radius:12px;box-shadow:0 3px 0 #5e160b">OK</button></div><span id="netNameMsg" style="font-size:16px;font-weight:800"></span><span id="netLine" style="font-size:15px;color:#9fe6ff">Connecting to the world…</span>';
     $("pickTitle").after(box);
-    const inp=$("netName");inp.value=myName();pickLine=$("netLine");
-    inp.addEventListener("keydown",e=>{e.stopPropagation();if(e.key==="Enter")inp.blur()});
-    inp.addEventListener("input",()=>{const v=inp.value.replace(/[^\p{L}\p{N} '\-!]/gu,"").slice(0,14);try{localStorage.setItem("dinoName",v.trim())}catch(e){}});
+    inp=$("netName");okBtn=$("netOk");nameMsg=$("netNameMsg");pickLine=$("netLine");inp.value=myName();
+    inp.addEventListener("keydown",e=>{e.stopPropagation();if(e.key==="Enter"){e.preventDefault();if(!okBtn.disabled)takeName()}});
+    inp.addEventListener("input",checkName);
+    okBtn.addEventListener("click",e=>{e.preventDefault();takeName()});
+    checkName();
   }
   if(!off)connect();
   // seconds on a clock every player shares (for day and night)

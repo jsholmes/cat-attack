@@ -7,7 +7,8 @@
 // That keeps the server tiny and the game feeling instant, while everyone still sees the same world.
 //
 // Messages are JSON. Client -> server:
-//   {t:"hi", name}                     join; server answers {t:"welcome", pid, base, now}
+//   {t:"hi", name}                     join or change name; server answers {t:"welcome", pid, base, now} (first time) and {t:"you", name}
+//   {t:"nm", name}                     is this name free? server answers {t:"nm", name, ok, mine}
 //   {t:"p", s:[x,y,r,playing,...]}     my dinosaur (r = how far I can see, playing = 1 when alive and not paused)
 //   {t:"e", u:[[id,k,x,y,...]], g:[id]} wild things I own: upserts (u) and removals (g)
 //   {t:"c", id}                        claim a wild thing (I just attacked or ate it)
@@ -21,6 +22,7 @@
 const W = 40960; // world size (wraps), same as the game
 const wd = d => { d %= W; if (d > W / 2) d -= W; else if (d < -W / 2) d += W; return d };
 const dist2 = (ax, ay, bx, by) => { const dx = wd(ax - bx), dy = wd(ay - by); return dx * dx + dy * dy };
+const cleanName = v => String(v || "").replace(/[^\p{L}\p{N} '\-!]/gu, "").replace(/\s+/g, " ").trim().slice(0, 14);
 const TICK_MS = 50, HANDOFF_MS = 500, LB_MS = 1000, MAX_PLAYERS = 64, MAX_ENTS_PER_PLAYER = 500;
 
 export default {
@@ -64,12 +66,21 @@ export class World {
 
   onMsg(p, m) {
     switch (m.t) {
-      case "hi":
-        p.name = String(m.name || "Dino").replace(/[^\p{L}\p{N} '\-!]/gu, "").slice(0, 14) || "Dino";
+      case "nm": { // is this name free? (someone else connected right now has it = taken)
+        const n = cleanName(m.name);
+        this.send(p, { t: "nm", name: n, ok: !!n && !this.taken(n, p), mine: !!n && n.toLowerCase() === p.name.toLowerCase() });
+        break;
+      }
+      case "hi": {
+        let n = cleanName(m.name) || "Dino";
+        if (n !== "Dino" && this.taken(n, p)) { const base = n.slice(0, 11); for (let k = 2; this.taken(n, p); k++) n = base + " " + k }
+        p.name = n;
+        this.send(p, { t: "you", name: n });
         for (const q of this.players.values()) q.kp.delete(p.pid); // others get the new name
         if (!p.joined) this.send(p, { t: "welcome", pid: p.pid, base: p.pid * 1e6, now: Date.now() });
         p.joined = true;
         break;
+      }
       case "p": {
         const s = m.s; if (!Array.isArray(s) || s.length > 40) return;
         p.s = s; p.x = +s[0] || 0; p.y = +s[1] || 0; p.r = Math.min(30000, +s[2] || 0); p.playing = s[3] === 1; p.ver++;
@@ -101,6 +112,7 @@ export class World {
     }
   }
 
+  taken(n, p) { n = n.toLowerCase(); for (const q of this.players.values()) if (q !== p && q.joined && q.name.toLowerCase() === n) return true; return false }
   drop(e) { this.ents.delete(e.id); const o = this.players.get(e.owner); if (o) o.count = Math.max(0, (o.count || 1) - 1) }
   give(e, to) { const o = this.players.get(e.owner); if (o) o.count = Math.max(0, (o.count || 1) - 1); e.owner = to.pid; to.count = (to.count || 0) + 1; e.ver++ }
   // the owner is leaving: give it to the nearest player who can see it, or remove it
