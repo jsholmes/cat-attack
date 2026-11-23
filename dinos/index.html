@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<!-- Dino Attack v3 (Velociraptor + Duckbill playable): one-player; Space is the claw (no on-screen button). The world, the dinos and the player are plain data in `world`, so a shared multiplayer world can be added later. -->
+<!-- Dino Attack v4 (tap a dino to attack it; Space still works): one-player; Space is the claw (no on-screen button). The world, the dinos and the player are plain data in `world`, so a shared multiplayer world can be added later. -->
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -103,7 +103,7 @@ body{font-family:var(--body);touch-action:none;user-select:none;-webkit-user-sel
   <h1>DINO <em>ATTACK</em></h1>
   <h2 id="pickTitle">Pick your dinosaur</h2>
   <div class="cards" id="cards"></div>
-  <p class="help">Drag your finger to walk. Press the Space bar to bite and claw (on an iPad with no keyboard, tap with a second finger). Eat 3 that are your size to get a star and grow. Grow to size 10, then follow the arrow to the blue egg!</p>
+  <p class="help">Drag your finger to walk. Tap a dinosaur to attack it (or press the Space bar). Eat 3 that are your size to get a star and grow. Grow to size 10, then follow the arrow to the blue egg!</p>
 </div>
 
 <div class="overlay" id="dead" hidden>
@@ -520,10 +520,10 @@ const detect=e=>Math.max(len(me.size)*5.2,len(e.size)*2.6);
 function target(){
   let best=null,bd=1e9;for(const e of world.dinos){if(e.dying)continue;const d=dist(e,me),r=reachMe(e);if(d<r&&d-r<bd){bd=d-r;best=e}}return best
 }
-function attack(){
+function attack(want){
   if(game.state!=="play"||me.dead||me.cd>0)return;
   audio();me.cd=.3;me.atk=1;me.jaw=1;
-  const e=target();
+  const e=want&&!want.dying&&world.dinos.includes(want)&&dist(want,me)<reachMe(want)?want:target();
   if(!e){sfx.slash();const hx=me.x+me.face*len(me.size)*.55,hy=me.y-len(me.size)*.35;fx.push({k:"slash",x:hx,y:hy,t:.22,s:len(me.size)*.5,f:me.face});
     if(!SP[me.sp].meat)eatPlantNear(true);return}
   me.face=wd(e.x-me.x)>=0?1:-1;
@@ -631,9 +631,20 @@ function aiStep(e,dt){
 const fingers=new Map();let keys={};
 function scr(e){const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
 const clawFingers=new Set();
+// what did a tap land on? a dinosaur (or, for plant eaters, a plant)
+function hitTest(pt){
+  if(!me||me.dead)return null;let best=null,bd=1e9;
+  for(const e of world.dinos){if(e.dying||e.state==="dead")continue;const [x,y]=toScr(e.x,e.y),L=len(e.size)*cam.z,top=e.sp==="brachio"?1.35:.8,pad=22;
+    if(pt.x>x-L*.6-pad&&pt.x<x+L*.6+pad&&pt.y>y-L*top-pad&&pt.y<y+L*.12+pad){const d=Math.hypot(pt.x-x,pt.y-(y-L*.35));if(d<bd){bd=d;best={kind:"dino",o:e}}}}
+  if(best)return best;
+  if(!SP[me.sp].meat)for(const p of world.plants){if(p.eaten)continue;const [x,y]=toScr(p.x,p.y),h=plantH(p.size)*cam.z,pad=18;
+    if(pt.x>x-h*.45-pad&&pt.x<x+h*.45+pad&&pt.y>y-h-pad&&pt.y<y+pad){const d=Math.hypot(pt.x-x,pt.y-(y-h*.5));if(d<bd){bd=d;best={kind:"plant",o:p}}}}
+  return best;
+}
+// tap a dinosaur: walk over to it and claw/bite it once it is close enough
 cv.addEventListener("pointerdown",e=>{e.preventDefault();try{cv.setPointerCapture(e.pointerId)}catch(_){}audio();
-  // a second finger tapping while one is walking is the claw (for iPads with no keyboard)
-  if(e.pointerType==="touch"&&fingers.size>0){clawFingers.add(e.pointerId);attack();return}
+  if(game.state==="play"){const h=hitTest(scr(e));if(h){clawFingers.add(e.pointerId);me.goal={...h,t:6};fx.push({k:"tap",o:h.o,t:.5});
+    if(h.kind==="dino"&&dist(h.o,me)<reachMe(h.o)){attack(h.o);me.goal=null}return}}
   fingers.delete(e.pointerId);fingers.set(e.pointerId,scr(e))});
 cv.addEventListener("pointermove",e=>{if(fingers.has(e.pointerId))fingers.set(e.pointerId,scr(e))});
 const lift=e=>{fingers.delete(e.pointerId);clawFingers.delete(e.pointerId)};
@@ -670,7 +681,7 @@ function start(sp){
   me=newPlayer(sp);world.players=[me];
   resize();cam.x=me.x;cam.y=me.y;cam.z=zoomFor(1);
   populate(true);game.state="play";show(null);hud();
-  banner(SP[sp].name.toUpperCase(),SP[sp].meat?"Meat eater: press Space to claw dinos your size and eat them":"Plant eater: eat plants your size, press Space to claw dinos",3);
+  banner(SP[sp].name.toUpperCase(),SP[sp].meat?"Meat eater: tap dinos your size to attack and eat them":"Plant eater: eat plants your size, tap a dino to fight it",3);
 }
 function togglePause(){if(game.state==="play"){game.state="paused";fingers.clear();show("paused")}else if(game.state==="paused"){game.state="play";show(null)}}
 $("menuBtn").onclick=togglePause;$("resumeBtn").onclick=togglePause;$("quitBtn").onclick=()=>openPick(false);
@@ -708,7 +719,14 @@ function step(dt){
   if(me.dead){me.deadT+=dt;return}
   // movement: walk toward the finger (the newest finger on the screen)
   let mx=0,my=0,f=0;
-  if(fingers.size){const p=[...fingers.values()].pop();const sx=cw/2,sy=ch/2-len(me.size)*.3*cam.z;const dx=p.x-sx,dy=p.y-sy,d=Math.hypot(dx,dy);if(d>10){mx=dx/d;my=dy/d;f=clamp(d/110,.3,1)}}
+  const keyMove=keys["arrowright"]||keys["arrowleft"]||keys["arrowup"]||keys["arrowdown"]||keys.w||keys.a||keys.s||keys.d;
+  if(me.goal){const g=me.goal,o=g.o;g.t-=dt;
+    const gone=g.kind==="dino"?(o.dying||!world.dinos.includes(o)):(o.eaten||!world.plants.includes(o));
+    if(gone||g.t<=0||fingers.size||keyMove)me.goal=null;
+    else{const dx=wd(o.x-me.x),dy=wd(o.y-me.y),d=Math.hypot(dx,dy)||1;
+      if(g.kind==="dino"&&d<reachMe(o)*.9){if(me.cd<=0){attack(o);me.goal=null}}
+      else{mx=dx/d;my=dy/d;f=1}}}
+  if(me.goal){}else if(fingers.size){const p=[...fingers.values()].pop();const sx=cw/2,sy=ch/2-len(me.size)*.3*cam.z;const dx=p.x-sx,dy=p.y-sy,d=Math.hypot(dx,dy);if(d>10){mx=dx/d;my=dy/d;f=clamp(d/110,.3,1)}}
   else{const kx=(keys["arrowright"]||keys.d?1:0)-(keys["arrowleft"]||keys.a?1:0),ky=(keys["arrowdown"]||keys.s?1:0)-(keys["arrowup"]||keys.w?1:0);if(kx||ky){const d=Math.hypot(kx,ky);mx=kx/d;my=ky/d;f=1}}
   const sp=pspeed(me.size)*f,k=Math.min(1,dt*8);
   me.vx=lerp(me.vx,mx*sp,k);me.vy=lerp(me.vy,my*sp,k);
@@ -782,6 +800,7 @@ function render(){
   /* effects */
   for(const p of fx){const [x,y]=toScr(p.x,p.y);
     if(p.k==="p"){c.globalAlpha=clamp(p.t*2,0,1);c.fillStyle=p.col;c.beginPath();c.arc(x,y,Math.max(1,p.r*z),0,TAU);c.fill();c.globalAlpha=1}
+    else if(p.k==="tap"){if(!p.o)continue;const [tx,ty]=toScr(p.o.x,p.o.y),L=(p.o.sp?len(p.o.size):plantH(p.o.size)*.8)*z,a=clamp(p.t/.5,0,1);c.strokeStyle=`rgba(255,210,120,${a})`;c.lineWidth=3;c.beginPath();c.ellipse(tx,ty,L*(.75-.2*a),L*(.18-.05*a),0,0,TAU);c.stroke()}
     else if(p.k==="star"){c.globalAlpha=clamp(p.t,0,1);c.fillStyle="#ffd25a";c.font=`${Math.round(18+len(me.size)*z*.1)}px sans-serif`;c.textAlign="center";c.fillText("★",x,y);c.globalAlpha=1}
     else if(p.k==="slash"){const s=p.s*z,a=clamp(p.t/.25,0,1);c.save();c.translate(x,y);c.scale(p.f,1);c.strokeStyle=`rgba(255,240,220,${a})`;c.lineCap="round";
       for(let k=-1;k<=1;k++){c.lineWidth=Math.max(2,s*.06);c.beginPath();c.moveTo(-s*.4+k*s*.22,-s*.45);c.quadraticCurveTo(k*s*.22+s*.1,0,-s*.2+k*s*.22,s*.45);c.stroke()}
@@ -849,7 +868,7 @@ function drawEgg(x,y){
 }
 
 /* debug hooks for testing in a browser console */
-window.DINO={world,game,get me(){return me},start,grow:()=>{me.food=3;grow()},setSize:s=>{me.size=s;me.food=0;hud()},attack,populate};
+window.DINO={world,game,get me(){return me},toScr:(x,y)=>toScr(x,y),hitTest,start,grow:()=>{me.food=3;grow()},setSize:s=>{me.size=s;me.food=0;hud()},attack,populate};
 
 if(location.search.includes("icon")){ // used once to render the home screen icon
   $("pick").hidden=true;game.state="icon";
