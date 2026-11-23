@@ -202,8 +202,14 @@ Object.assign(SP,{
  diplo:{name:"Diplodocus",meat:false,col:{dark:"#463e33",mid:"#7a6d57",belly:"#bcae8e",far:"#3a332a"}},
  styra:{name:"Styraco\u00ADsaurus",meat:false,col:{dark:"#3a3226",mid:"#6c5a40",belly:"#aa9a7c",far:"#2f281e",frill:"#7a3a24",frill2:"#d4904c",horn:"#ece2c8"}},
 });
-PLAYABLE.splice(PLAYABLE.indexOf("carno")+1,0,"giga","bary","utah");PLAYABLE.push("diplo","styra");
-MEATS.push("giga","bary","utah");HERBS.push("diplo","styra","styra");
+Object.assign(SP,{
+ ovi:{name:"Oviraptor",meat:true,col:{dark:"#3a2e2a",mid:"#7a5a46",belly:"#d0b490",far:"#2e2420",stripe:"rgba(30,16,10,.5)",feather:"#2a1e1a",crest:"#c0502a",crest2:"#f0a040"}},
+ apato:{name:"Apatosaurus",meat:false,col:{dark:"#3c4036",mid:"#6a7060",belly:"#b2b29a",far:"#32362e"}},
+ argent:{name:"Argentino\u00ADsaurus",meat:false,col:{dark:"#4a3e34",mid:"#806a54",belly:"#c0ac8e",far:"#3e342c",armor:"#5a4a3a"}},
+ amarga:{name:"Amarga\u00ADsaurus",meat:false,col:{dark:"#3e3428",mid:"#78603e",belly:"#bea67e",far:"#332a20",spine:"#9a4422",spine2:"#e8c89a"}},
+});
+PLAYABLE.splice(PLAYABLE.indexOf("carno")+1,0,"giga","bary","utah","ovi");PLAYABLE.push("diplo","styra","apato","argent","amarga");
+MEATS.push("giga","bary","utah","ovi");HERBS.push("diplo","styra","styra","apato","argent","amarga");
 
 /* ----- the species ----- */
 const SPEC={
@@ -355,4 +361,32 @@ const SPEC={
      m.cone("bone","head",[px+.4,py,z],[px-Math.sin(.45)*ln*.9-2,py+Math.cos(.45)*ln,z*1.25],1.9,hc,7)}
    m.cone("bone","head",[48,36,0],[54,60,0],2.8,hc,8);for(const s of[1,-1])m.cone("bone","head",[37,46,s*5],[38,49,s*6],1.4,hc,6);
    m.cone("bone","head",[53.5,30,0],[58,24,0],2.2,col3("#2b261d"),6)}}),
+ ovi:()=>biped("ovi",{stripe:true,open:.45,
+  body:[[-52,46,.4,.4],[-41,47,2.4,2.4],[-29,46,4.6,4.6],[-16,44,7.6,7.6],[-4,43,10,10],[6,45,8.4,8.4],[14,53,4.6,4.6],[19,62,3.6,3.6],[23,67,3.2,3.2]],tail:[4,3,2],neck:[6,7],
+  skull:[[21,68,3.6,4],[26,69,3.8,4.6],[30,67,3,3.6],[33,64.4,1.8,2.2],[34.4,63,.6,.8]],jaw:{h:[24,64.8],pts:[[23,64.6,3,1.6],[30,62.8,2.2,1.4],[32.8,62.4,.8,.6]]},eye:[25.5,70,3.4,1.4],
+  leg:{hip:[-2,38,6],knee:[5,25],ankle:[-2,11],ball:[2,1],r:[6.6,3.6,2,1.7],toe:5,claw:true},
+  arm:{sh:[10,46,5],el:[16,40],hand:[22,40],r:[2,1.4],claws:3,cl:3.4},
+  extra:m=>{const c=SP.ovi.col,c0=col3(c.crest),c1=col3(c.crest2),f=col3(c.feather);
+   m.fin("acc",21,31,8,x=>[x,70+2.5*Math.cos((x-26)/6),0],x=>{const t=(x-21)/10;return[x-1.5,72+11*Math.pow(Math.sin(Math.PI*Math.pow(t,.75)),.85),0]},(v,k)=>mixC(c0,c1,v),"head");
+   m.cone("bone","head",[31,65.4,0],[34.8,62.2,0],2.2,col3("#2a241c"),6);
+   for(let x=-50;x<10;x+=3){const a=m.at(x);m.cone("skin",m.boneX(x),[x,a.y+a.h*.7,0],[x-4,a.y+a.h+2.6,0],1.1,f,4)}
+   for(let i=0;i<5;i++)m.cone("skin","tail2",[-46+i,46,0],[-56-i*.6,46+(i-2)*3.4,(i-2)*2],1.4,f,4);
+   for(const s of[1,-1])for(let i=0;i<5;i++)m.cone("skin","arm"+(s>0?"L":"R"),[11+i*2.4,44.6-i*1.1,s*5.4],[8+i*2.4,36-i,s*6.4],.9,f,4)}}),
+ apato:()=>quad("apato",{open:.25,
+  body:[[-84,40,.5,.5],[-70,44,2.4,2.4],[-54,50,6,6],[-33,56,13,13],[-14,60,18,18],[2,58,17,17],[14,58,12,12],[26,62,9,9.5],[38,68,7,7.5],[48,73,5,5.4],[54,75,4,4.2]],tail:[3,2,1],neck:[6,8],
+  skull:[[52,75.4,3.4,3.6],[58,75.6,3.8,3.4],[64,74,2.8,2.4],[67.6,73,1.4,1.2]],jaw:{h:[56,72.6],pts:[[55,72.6,3,1.3],[65,72,1.4,.8]]},eye:[57,76.8,3.6,1],
+  back:{hip:[-16,54,13],knee:[-14,27],foot:[-16,0],r:[13.5,9,7.4]},front:{hip:[10,48,11],knee:[12,24],foot:[12,0],r:[10.5,8,7]}}),
+ argent:()=>quad("argent",{open:.25,
+  body:[[-72,44,.5,.5],[-58,48,3,3],[-41,54,8,8],[-22,60,17,16],[-4,64,20,19],[12,66,14,14],[22,78,9,9],[30,94,6.6,6.6],[36,108,5,5],[39,112,4.4,4.4]],tail:[3,2,1],neck:[5,7],
+  skull:[[37,113,4.4,4.6],[43,115,5,5],[49,113,3.6,3.4],[52.4,111,2,2]],jaw:{h:[43,110],pts:[[42,110,3.4,1.5],[51,109.6,1.8,1]]},eye:[42.5,115.4,4.5,1.3],
+  back:{hip:[-20,52,14],knee:[-18,26],foot:[-20,0],r:[14,9.6,7.6]},front:{hip:[14,56,12],knee:[16,28],foot:[16,0],r:[12,8.4,7.2]},
+  extra:m=>{const ar=col3(SP.argent.col.armor);for(let x=-34;x<=14;x+=5.5){const a=m.at(x),bn=m.boneX(x);for(const an of[.35,-.35,.9,-.9]){const y=a.y+a.h*Math.cos(an),z=a.w*Math.sin(an);m.ell("skin",bn,[x,y,z],[2.4,1.4,2],ar,null,7)}}}}),
+ amarga:()=>quad("amarga",{open:.25,
+  body:[[-76,36,.4,.4],[-62,40,2,2],[-46,46,5,5],[-27,50,10,10],[-10,52,13,13],[4,50,11,11],[14,52,7,7],[24,58,5,5],[32,64,4,4],[38,66,3.4,3.4]],tail:[3,2,1],neck:[5,7],
+  skull:[[36,66.4,3,3.2],[42,66.6,3.4,3],[47,65,2.4,2],[50,64,1.2,1]],jaw:{h:[40,63.6],pts:[[39,63.6,2.6,1.1],[48,63,1.2,.7]]},eye:[41,67.6,3,1],
+  back:{hip:[-12,48,10],knee:[-10,24],foot:[-12,0],r:[10,7,5.6]},front:{hip:[8,44,9],knee:[10,22],foot:[10,0],r:[8,6,5]},
+  extra:m=>{const c=SP.amarga.col,s0=col3(c.spine),s1=col3(c.spine2);
+   for(let x=5;x<=34;x+=2.6){const a=m.at(x),bn=m.boneX(x),t=(x-5)/29,h=6+16*Math.sin(Math.PI*Math.min(1,t*1.15));
+     for(const s of[1,-1])m.loft("acc",[[x,a.y+a.h*.6,s*1.1,.9,.9],[x-3,a.y+a.h+h*.6,s*1.8,.55,.55],[x-6,a.y+a.h+h,s*2.4,.12,.12]],{bone:bn,rs:5,sub:2,color:(oy,p)=>mixC(s0,s1,(p[1]-a.y)/(a.h+h))})}
+   for(let x=-30;x<4;x+=4){const a=m.at(x);m.cone("bone",m.boneX(x),[x,a.y+a.h*.8,0],[x-1,a.y+a.h+4,0],1.2,col3("#d8c8a4"),5)}}}),
 };
