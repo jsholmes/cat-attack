@@ -566,6 +566,7 @@ function dayNight(){
 }
 function render3D(dt){
   stamp++;dayNight();const L=camL,D=L*6.6;
+  {const tw=performance.now()/1000;waterNorm.offset.set(tw*.011,tw*.007);waterMat.envMapIntensity=.9*(.25+.75*dayL)}
   camT.set(0,camH+L*.35,0);camera.position.set(0,camT.y+Math.sin(EL)*D,Math.cos(EL)*D);camera.lookAt(camT);
   camera.near=D*.04;camera.far=D*4.2;camera.updateProjectionMatrix();camera.getWorldDirection(camFwd);
   scene.fog.near=D*1.15;scene.fog.far=D*2.9;
