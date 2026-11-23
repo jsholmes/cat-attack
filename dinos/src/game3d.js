@@ -557,6 +557,7 @@ function dayNight(){
   sun.color.copy(d>.5?DN.dusk.clone().lerp(DN.sunD,(d-.5)*2):DN.moon.clone().lerp(DN.dusk,d*2));sun.intensity=lerp(1,2.9,d);
   hemi.color.copy(DN.skyN).lerp(DN.skyD,d);hemi.groundColor.copy(DN.gN).lerp(DN.gD,d);hemi.intensity=lerp(.75,1.5,d);
   scene.fog.color.copy(DN.fogN).lerp(DN.fogD,d);scene.background.copy(scene.fog.color);renderer.toneMappingExposure=lerp(1.2,1.3,d);
+  const ek=.25+.75*d;for(const I of liveInst)for(const k in I.mats){const mt=I.mats[k];if(mt.envMap){if(mt.userData.e0===undefined)mt.userData.e0=mt.envMapIntensity;mt.envMapIntensity=mt.userData.e0*ek}}
   const night=d<.3;if(game.state==="play"&&night!==!!game.night){game.night=night;
     if(night)banner("NIGHT FALLS...","Hunters can find you from farther away. Watch for glowing eyes!",3.5);else banner("THE SUN IS UP!","",2)}
 }
