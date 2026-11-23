@@ -7,7 +7,7 @@
 // That keeps the server tiny and the game feeling instant, while everyone still sees the same world.
 //
 // Messages are JSON. Client -> server:
-//   {t:"hi", name}                     join or change name; server answers {t:"welcome", pid, base, now} (first time) and {t:"you", name}
+//   {t:"hi", name, dev}                join or change name (dev = device id: an older connection from the same device is closed); server answers {t:"welcome", pid, base, now} (first time) and {t:"you", name}
 //   {t:"nm", name}                     is this name free? server answers {t:"nm", name, ok, mine}
 //   {t:"p", s:[x,y,r,playing,...]}     my dinosaur (r = how far I can see, playing = 1 when alive and not paused)
 //   {t:"e", u:[[id,k,x,y,...]], g:[id]} wild things I own: upserts (u) and removals (g)
@@ -15,15 +15,17 @@
 //   {t:"h", to, sp, size, dmg}         I hit another player
 //   {t:"k", by, sp, size}              I was killed by player `by`
 //   {t:"reset"}                        I restarted: let go of everything I owned
+//   {t:"ping"}                         still here (anyone silent for IDLE_MS is dropped)
 // Server -> client:
 //   {t:"s", p:[[pid,name|0,...s]], pg:[pid], e:[[id,owner,k,x,y,...]], g:[id]}  what changed near you
+//   {t:"bye"}  a newer connection from your device took over (you are disconnected)
 //   {t:"h", from, sp, size, dmg}  {t:"k", from, sp, size}  {t:"lb", n, top:[[name,size,sp]]}
 
 const W = 40960; // world size (wraps), same as the game
 const wd = d => { d %= W; if (d > W / 2) d -= W; else if (d < -W / 2) d += W; return d };
 const dist2 = (ax, ay, bx, by) => { const dx = wd(ax - bx), dy = wd(ay - by); return dx * dx + dy * dy };
 const cleanName = v => String(v || "").replace(/[^\p{L}\p{N} '\-!]/gu, "").replace(/\s+/g, " ").trim().slice(0, 14);
-const TICK_MS = 50, HANDOFF_MS = 500, LB_MS = 1000, MAX_PLAYERS = 64, MAX_ENTS_PER_PLAYER = 500;
+const TICK_MS = 50, HANDOFF_MS = 500, LB_MS = 1000, MAX_PLAYERS = 64, MAX_ENTS_PER_PLAYER = 500, IDLE_MS = 15000;
 
 export default {
   async fetch(req, env) {
@@ -53,7 +55,7 @@ export class World {
     const ws = pair[1];
     ws.accept();
     const pid = this.nextPid++;
-    const p = { pid, ws, name: "Dino", s: null, x: 0, y: 0, r: 0, playing: false, ver: 0, kp: new Map(), ke: new Map(), joined: false };
+    const p = { pid, ws, name: "Dino", s: null, x: 0, y: 0, r: 0, playing: false, ver: 0, kp: new Map(), ke: new Map(), joined: false, dev: "", seen: Date.now() };
     this.players.set(pid, p);
     ws.addEventListener("message", ev => { try { this.onMsg(p, JSON.parse(ev.data)) } catch (e) { } });
     const bye = () => this.leave(p);
@@ -64,7 +66,15 @@ export class World {
 
   send(p, o) { try { p.ws.send(JSON.stringify(o)) } catch (e) { } }
 
+  // drop a connection for good (and tell everyone else it's gone on the next tick)
+  kick(q, why) {
+    if (why) this.send(q, { t: why });
+    try { q.ws.close(1000, why || "idle") } catch (e) { }
+    this.leave(q);
+  }
+
   onMsg(p, m) {
+    p.seen = Date.now();
     switch (m.t) {
       case "nm": { // is this name free? (someone else connected right now has it = taken)
         const n = cleanName(m.name);
@@ -72,6 +82,9 @@ export class World {
         break;
       }
       case "hi": {
+        // the same device connecting again (reload, other tab, phone woke up): the old connection is a ghost now
+        const dev = typeof m.dev === "string" ? m.dev.slice(0, 20) : "";
+        if (dev) { p.dev = dev; for (const q of [...this.players.values()]) if (q !== p && q.dev === dev) this.kick(q, "bye") }
         let n = cleanName(m.name) || "Dino";
         if (n !== "Dino" && this.taken(n, p)) { const base = n.slice(0, 11); for (let k = 2; this.taken(n, p); k++) n = base + " " + k }
         p.name = n;
@@ -149,6 +162,9 @@ export class World {
   tick() {
     const now = Date.now();
     if (now - this.lastHandoff > HANDOFF_MS) { this.lastHandoff = now; this.handoff() }
+    // a phone that went to sleep can leave its connection open without ever saying goodbye: let it go
+    for (const q of [...this.players.values()]) if (now - q.seen > IDLE_MS) this.kick(q);
+    if (!this.players.size) return;
     const all = [...this.players.values()];
     for (const p of all) {
       if (!p.joined || !p.s) continue;
