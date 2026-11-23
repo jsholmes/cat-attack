@@ -19,6 +19,7 @@ const sfx={
   die(){blip("sawtooth",220,1.1,.3,40);noiseSfx(.6,.3,"lowpass",400)},
   whack(){noiseSfx(.25,.6,"lowpass",300);blip("sine",70,.3,.4,35)},
   honk(){blip("sawtooth",190,.35,.25,150);setTimeout(()=>blip("sawtooth",160,.5,.25,110),300)},
+  slurp(){noiseSfx(.09,.22,"lowpass",700);blip("sine",520,.12,.18,260)},
   egg(){[784,988,1175,1568,1976].forEach((f,i)=>setTimeout(()=>blip("sine",f,.4,.22),i*110))},
 };
 
@@ -72,7 +73,7 @@ const cam={x:0,y:0,z:1};
 let cw=0,ch=0,dpr=1;
 const cv=$("cv"),ctx=cv.getContext("2d");
 
-function newPlayer(sp){return{local:true,kids:[],sp,size:1,food:0,x:rnd(W),y:rnd(W),vx:0,vy:0,face:1,yaw:0,ph:0,mv:0,cd:0,atk:0,jaw:0,dead:false,deadT:0,hurt:0,kx:0,ky:0,tooBigT:0}}
+function newPlayer(sp){return{local:true,kids:[],sp,size:1,food:0,x:rnd(W),y:rnd(W),vx:0,vy:0,face:1,yaw:0,ph:0,mv:0,cd:0,atk:0,jaw:0,dead:false,deadT:0,hurt:0,kx:0,ky:0,tooBigT:0,drink:0,drinkCd:0,still:0,boost:0,sip:0}}
 function spawnDino(sp,size,x,y){const e={id:++world.uid,sp,size,x:wrap(x),y:wrap(y),face:Math.random()<.5?-1:1,yaw:rnd(TAU),vx:0,vy:0,ph:rnd(TAU),mv:0,state:"wander",wt:0,head:rnd(TAU),graze:false,
   dmg:0,stun:0,kx:0,ky:0,wind:0,rest:0,huntT:0,huntCd:rnd(1,3),jaw:0,dying:0,angry:0,scared:0,hurt:0};world.dinos.push(e);return e}
 const fishLen=s=>len(s)*.5;
@@ -353,12 +354,16 @@ function hitTest(pt){
   return best;
 }
 const taps=new Map();
-function doTap(h){if(game.state!=="play"||!me||me.dead)return;me.goal={...h,t:6};fx.push({k:"tap",o:h.o,t:.5});
+function doTap(h){if(game.state!=="play"||!me||me.dead)return;
+  if(h.kind==="water"){fx.push({k:"ripple",x:h.o.x,y:h.o.y,t:.9,s:len(me.size)*.5});if(canDrink(me,len(me.size))){me.goal=null;startDrink()}else me.goal={...h,t:4};return}
+  me.goal={...h,t:6};fx.push({k:"tap",o:h.o,t:.5});
   if(h.kind==="dino"&&dist(h.o,me)<reachMe(h.o)){attack(h.o);me.goal=null}
   if(h.kind==="fish"&&dist(h.o,me)<reachFish(h.o)){attack(h.o);me.goal=null}}
 cv.addEventListener("pointerdown",e=>{e.preventDefault();try{cv.setPointerCapture(e.pointerId)}catch(_){}audio();
   const pt=scr(e);fingers.delete(e.pointerId);fingers.set(e.pointerId,pt);
-  if(game.state==="play"){const h=hitTest(pt);if(h)taps.set(e.pointerId,{x:pt.x,y:pt.y,t:performance.now(),h})}});
+  if(game.state==="play"){let h=hitTest(pt);
+    if(!h&&me&&!me.dead){const gp=groundPoint(pt,camH);if(gp){const x=wrap(cam.x+gp.x),y=wrap(cam.y+gp.z);if(isWater(x,y)&&Math.hypot(wd(x-me.x),wd(y-me.y))<len(me.size)*5)h={kind:"water",o:{x,y}}}}
+    if(h)taps.set(e.pointerId,{x:pt.x,y:pt.y,t:performance.now(),h})}});
 cv.addEventListener("pointermove",e=>{if(!fingers.has(e.pointerId))return;const pt=scr(e);fingers.set(e.pointerId,pt);
   const tp=taps.get(e.pointerId);if(tp&&Math.hypot(pt.x-tp.x,pt.y-tp.y)>16)taps.delete(e.pointerId)});
 cv.addEventListener("pointerup",e=>{const tp=taps.get(e.pointerId);taps.delete(e.pointerId);fingers.delete(e.pointerId);if(tp&&performance.now()-tp.t<450)doTap(tp.h)});
@@ -457,7 +462,7 @@ function openBook(){
     if(known){const st=document.createElement("span");st.className="st";const bits=[];if(bk.played)bits.push(`Played ${bk.played}x, best size ${bk.best}`);if(bk.beat)bits.push(`Beaten ${bk.beat}x`);if(bk.ate)bits.push(`Eaten ${bk.ate}x`);if(save.grown[sp])bits.push("⭐ Fully grown");st.textContent=bits.join(" · ");el.append(st)}
     gr.append(el)}
   let ate=0;for(const s in save.book)ate+=save.book[s].ate||0;
-  $("bookCount").textContent=`You found ${found} of ${cardCvs.length} dinosaurs \u00B7 You ate ${ate} dinosaur${ate===1?"":"s"}, ${save.fish||0} fish and ${save.plants||0} plants`;$("book").hidden=false;
+  $("bookCount").textContent=`You found ${found} of ${cardCvs.length} dinosaurs \u00B7 You ate ${ate} dinosaur${ate===1?"":"s"}, ${save.fish||0} fish and ${save.plants||0} plants \u00B7 You had ${save.drinks||0} drink${save.drinks===1?"":"s"} of water`;$("book").hidden=false;
 }
 function refreshCards(){for(const q of cardCvs){const L=isLocked(q.sp);if(q.b.classList.contains("locked")!==L){q.b.classList.toggle("locked",L);if(cardI[q.sp]){cardScene.remove(cardI[q.sp].g);delete cardI[q.sp]}}}}
 refreshCards(); // mark locked cards as soon as the pick screen is built
@@ -495,6 +500,24 @@ function resize(){dpr=Math.min(2,window.devicePixelRatio||1);cw=innerWidth;ch=in
 addEventListener("resize",resize);resize();
 
 let last=performance.now(),popT=0;
+/* ========================= drinking ========================= */
+// Walk to the water and stop (or tap the water near you): your dino lowers its head and drinks.
+// A good drink refreshes you, so you run a bit faster for a while.
+const DRINK_T=1.9,BOOST_T=12;
+function mouthAt(o,L){return{x:wrap(o.x+Math.cos(o.yaw)*L*.52),y:wrap(o.y+Math.sin(o.yaw)*L*.52)}}
+function canDrink(o,L){const m=mouthAt(o,L);return isWater(m.x,m.y)||isWater(o.x,o.y)}
+function startDrink(){if(me.drink>0||me.dead)return;me.drink=DRINK_T;me.sip=.35;me.drinkCd=6;me.vx=me.vy=0}
+function drinkStep(dt){
+  me.drinkCd-=dt;me.boost=Math.max(0,me.boost-dt);
+  if(me.drink<=0)return;
+  me.drink-=dt;me.sip-=dt;const L=len(me.size),m=mouthAt(me,L);
+  if(me.sip<=0&&me.drink>.3){me.sip=.5;sfx.slurp();fx.push({k:"ripple",x:m.x,y:m.y,t:.9,s:L*.35});burst(m.x,m.y,"#cfeef5",5,L*.012,L*.05)}
+  if(me.drink<=0){me.drink=0;const first=me.boost<=0;me.boost=BOOST_T;save.drinks=(save.drinks||0)+1;store();
+    say(me.x,me.y,first?"Ahh! Refreshed! You're faster for a bit":"Ahh! Still refreshed!","#9fe6ff",L*1.3)}
+}
+// 0..1 how far the head is down (smooth in and out)
+const drinkAmt=o=>o.drink>0?clamp(Math.min(o.drink,DRINK_T-o.drink)*3,0,1):0;
+
 function step(dt){
   game.t+=dt;
   me.cd-=dt;me.atk=Math.max(0,me.atk-dt*4);me.jaw=Math.max(0,me.jaw-dt*3);me.hurt=Math.max(0,me.hurt-dt);me.tooBigT-=dt;
@@ -502,10 +525,11 @@ function step(dt){
   let mx=0,my=0,f=0;
   const keyMove=keys["arrowright"]||keys["arrowleft"]||keys["arrowup"]||keys["arrowdown"]||keys.w||keys.a||keys.s||keys.d;
   if(me.goal){const g=me.goal,o=g.o;g.t-=dt;
-    const gone=g.kind==="dino"?(o.dying||!world.dinos.includes(o)):g.kind==="fish"?(o.dead||!world.fish.includes(o)):(o.eaten||o.meal||!world.plants.includes(o));
+    const gone=g.kind==="water"?false:g.kind==="dino"?(o.dying||!world.dinos.includes(o)):g.kind==="fish"?(o.dead||!world.fish.includes(o)):(o.eaten||o.meal||!world.plants.includes(o));
     if(gone||g.t<=0||fingers.size||keyMove){me.goal=null;me.charging=false}
     else{const dx=wd(o.x-me.x),dy=wd(o.y-me.y),d=Math.hypot(dx,dy)||1;
-      if(g.kind==="dino"&&d<reachMe(o)*.9){if(me.cd<=0){attack(o);me.goal=null}}
+      if(g.kind==="water"&&canDrink(me,len(me.size))){me.goal=null;startDrink()}
+      else if(g.kind==="dino"&&d<reachMe(o)*.9){if(me.cd<=0){attack(o);me.goal=null}}
       else if(g.kind==="fish"&&d<reachFish(o)*.9){if(me.cd<=0){attack(o);me.goal=null}}
       else{mx=dx/d;my=dy/d;f=1;const mv=MOVES[me.sp];if(g.kind==="dino"&&mv&&mv.charge&&(me.charging||d>reachMe(o)*1.6)){f=1.7;if(!me.charging){me.charging=true;say(me.x,me.y,mv.name+"!","#ffe08a",len(me.size)*1.5);sfx.honk()}}}}}
   if(me.goal){}else if(fingers.size){const p=[...fingers.values()].pop();const L=len(me.size),gy=groundY(me.x,me.y,L);
@@ -513,12 +537,17 @@ function step(dt){
     if(sd>10&&gp){const dx=gp.x,dy=gp.z,d=Math.hypot(dx,dy);if(d>0){mx=dx/d;my=dy/d;f=clamp(sd/110,.3,1)}}}
   else{const kx=(keys["arrowright"]||keys.d?1:0)-(keys["arrowleft"]||keys.a?1:0),ky=(keys["arrowdown"]||keys.s?1:0)-(keys["arrowup"]||keys.w?1:0);if(kx||ky){const d=Math.hypot(kx,ky);mx=kx/d;my=ky/d;f=1}}
   me.wet=isWater(me.x,me.y);
-  const sp=pspeed(me.size)*f*(me.wet&&!SP[me.sp].fly?.6:1)*((MOVES[me.sp]&&MOVES[me.sp].fast)||1),k=Math.min(1,dt*8);
+  if(f>0&&me.drink>0&&me.drink<DRINK_T-.25)me.drink=0; // walking off stops drinking
+  if(me.drink>0)f=0;
+  const sp=pspeed(me.size)*f*(me.wet&&!SP[me.sp].fly?.6:1)*((MOVES[me.sp]&&MOVES[me.sp].fast)||1)*(me.boost>0?1.25:1),k=Math.min(1,dt*8);
   me.vx=lerp(me.vx,mx*sp,k);me.vy=lerp(me.vy,my*sp,k);
   me.x=wrap(me.x+(me.vx+me.kx)*dt);me.y=wrap(me.y+(me.vy+me.ky)*dt);me.kx*=.86;me.ky*=.86;collide(me,len(me.size));
   const v=Math.hypot(me.vx,me.vy);
   if(v>len(me.size)*.15&&me.atk<=0){me.yaw=angTo(me.yaw,Math.atan2(me.vy,me.vx),dt*9);me.face=Math.cos(me.yaw)>=0?1:-1}
   me.mv=clamp(v/(pspeed(me.size)*.5),0,1);me.ph+=dt*v/len(me.size)*5.5;
+  // standing still at the water's edge (or in it) for a moment: have a drink
+  if(f===0&&!me.goal&&me.drink<=0&&canDrink(me,len(me.size))){me.still+=dt;if(me.still>1&&me.drinkCd<=0){me.still=0;startDrink()}}else me.still=0;
+  drinkStep(dt);
   if(!SP[me.sp].meat)eatPlantNear(false);
   for(const e of world.dinos)if(!e.remote)aiStep(e,dt);
   world.dinos=world.dinos.filter(e=>!(e.state==="dead"&&e.dying<=0));
@@ -554,7 +583,10 @@ const pv=new THREE.Vector3(),camFwd=new THREE.Vector3();
 // world spot (x,y) at height h -> screen {x,y,ppu (pixels per world unit there), behind}
 function toScr(x,y,h){pv.set(wd(x-cam.x),h,wd(y-cam.y));const dep=pv.clone().sub(camera.position).dot(camFwd);pv.project(camera);
   return{x:(pv.x+1)/2*cw,y:(1-pv.y)/2*ch,ppu:ch/(2*Math.tan(camera.fov*Math.PI/360)*Math.max(1,dep)),behind:dep<=0||pv.z>1}}
-function animOf(e){return{ph:e.ph,mv:e.mv,jaw:e.jaw,atk:e.atk||0,angry:e.state==="hunt"||e.state==="wind"||(e.angry>0)}}
+function animOf(e){
+  // a wild dino resting at the water lowers its head to drink now and then
+  let dr=0;if(e.graze&&e.state==="wander"&&e.mv<.1){if(!(--e._dwN>0)){e._dwN=20;e._dw=canDrink(e,len(e.size))}if(e._dw)dr=clamp(Math.sin(e.wt*1.3)*2,0,1)}
+  return{ph:e.ph,mv:e.mv,jaw:e.jaw,atk:e.atk||0,angry:e.state==="hunt"||e.state==="wind"||(e.angry>0),drink:dr}}
 /* ========================= day and night ========================= */
 const DAY=240;let dayL=1;
 const DN={fogD:new THREE.Color("#8e9688"),fogN:new THREE.Color("#0e1522"),sunD:new THREE.Color(0xfff0d8),dusk:new THREE.Color(0xff9a50),moon:new THREE.Color(0x9ab4ff),skyD:new THREE.Color(0xcfe0f0),skyN:new THREE.Color(0x3a4a70),gD:new THREE.Color(0x4a3c26),gN:new THREE.Color(0x141820)};
@@ -598,7 +630,7 @@ function render3D(dt){
   {const Lm=len(me.size);let I=me._i;if(!I||I.owner!==me||I.sp!==me.sp){if(I)relInst(I);I=me._i=getInst(me.sp,me);I.fade=1}I.stamp=stamp;
     const f=me.dead?clamp(me.deadT*2,0,1):0;
     place(I,me.x+Math.cos(me.yaw)*me.atk*Lm*.08,me.y+Math.sin(me.yaw)*me.atk*Lm*.08,Lm,me.yaw);I.inner.rotation.x=f*1.4;I.inner.position.y=-f*6;
-    pose(I,{ph:me.ph,mv:me.mv,jaw:me.jaw,atk:me.atk,angry:me.atk>0||!!me.charging},t);setOpacity(I,1);
+    pose(I,{ph:me.ph,mv:me.mv,jaw:me.jaw,atk:me.atk,angry:me.atk>0||!!me.charging,drink:drinkAmt(me)},t);setOpacity(I,1);
     I.mats.skin.emissive.setRGB(me.hurt>0?.55:0,me.hurt>0?.06:0,0);if(I.mats.acc)I.mats.acc.emissive.copy(I.mats.skin.emissive);I.mats.eye.emissive.setHex(me.atk>0?0xff3a10:0xff9a20);
     meRing.position.set(0,groundY(me.x,me.y,Lm)+Lm*.02,0);meRing.scale.setScalar(Lm*.55);meRing.visible=!me.dead}
   // babies
@@ -644,6 +676,8 @@ function overlay(){
     if(q.k==="p"){const p=toScr(q.x,q.y,q.g+q.h);if(p.behind)continue;c.globalAlpha=clamp(q.t*2,0,1);c.fillStyle=q.col;c.beginPath();c.arc(p.x,p.y,Math.max(1.2,q.r*p.ppu),0,TAU);c.fill();c.globalAlpha=1}
     else if(q.k==="tap"){if(!q.o)continue;const Lo=q.o.ang!==undefined?fishLen(q.o.size):q.o.sp?len(q.o.size):plantH(q.o.size)*.8,p=toScr(q.o.x,q.o.y,groundY(q.o.x,q.o.y,Lo)),a=clamp(q.t/.5,0,1);if(p.behind)continue;
       c.strokeStyle=`rgba(255,210,120,${a})`;c.lineWidth=3;c.beginPath();c.ellipse(p.x,p.y,Lo*p.ppu*(.75-.2*a),Lo*p.ppu*(.75-.2*a)*Math.sin(EL),0,0,TAU);c.stroke()}
+    else if(q.k==="ripple"){const p=toScr(q.x,q.y,groundY(q.x,q.y,len(me.size))),a=clamp(q.t/.9,0,1);if(p.behind)continue;
+      for(const k of[0,.35]){const b=clamp(a+k,0,1);if(b>=1)continue;const r=q.s*p.ppu*(.3+(1-b)*1.4);c.strokeStyle=`rgba(225,245,255,${b*.9})`;c.lineWidth=2.5;c.beginPath();c.ellipse(p.x,p.y,r,r*Math.sin(EL),0,0,TAU);c.stroke()}}
     else if(q.k==="honk"){const p=toScr(q.x,q.y,camH),a=clamp(q.t/.8,0,1),r=len(me.size)*p.ppu*(1+(1-a)*5);c.strokeStyle=`rgba(255,230,150,${a})`;c.lineWidth=5;c.beginPath();c.ellipse(p.x,p.y,r,r*Math.sin(EL),0,0,TAU);c.stroke()}
     else if(q.k==="star"){const p=toScr(q.x+q.vx*(1.2-q.t),q.y+q.vy*(1.2-q.t),q.g+q.h+q.vh*(1.2-q.t)-len(me.size)*2*(1.2-q.t)**2);if(p.behind)continue;c.globalAlpha=clamp(q.t,0,1);c.fillStyle="#ffd25a";c.font=`${Math.round(18+len(me.size)*p.ppu*.1)}px sans-serif`;c.textAlign="center";c.fillText("★",p.x,p.y);c.globalAlpha=1}
     else if(q.k==="slash"){const p=toScr(q.x,q.y,groundY(q.x,q.y,len(me.size))+q.h);if(p.behind)continue;const s=q.s*p.ppu,a=clamp(q.t/.25,0,1);c.save();c.translate(p.x,p.y);c.scale(q.f,1);c.strokeStyle=`rgba(255,240,220,${a})`;c.lineCap="round";
@@ -670,5 +704,5 @@ function overlay(){
 }
 
 /* debug hooks for testing in a browser console */
-window.DINO={world,game,isWater,get me(){return me},toScr:(x,y,h)=>toScr(x,y,h||0),hitTest,start,collide,save,checkUnlocks,MOVES,isTeen,openBook,obstacles512,grow:()=>{me.food=3;grow()},setSize:s=>{me.size=s;me.food=0;hud()},attack,populate,renderer,scene,camera,THREE,spawnDino,tpl,makeInst,pose};
+window.DINO={world,game,isWater,canDrink,len,get me(){return me},toScr:(x,y,h)=>toScr(x,y,h||0),hitTest,start,collide,save,checkUnlocks,MOVES,isTeen,openBook,obstacles512,grow:()=>{me.food=3;grow()},setSize:s=>{me.size=s;me.food=0;hud()},attack,populate,renderer,scene,camera,THREE,spawnDino,tpl,makeInst,pose};
 requestAnimationFrame(frame);
