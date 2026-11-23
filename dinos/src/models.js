@@ -194,7 +194,18 @@ function quad(sp,P){
 }
 const fsheet=(m,x0,x1,h,w,z,col0,col1,bone,lean=0)=>m.fin("acc",x0,x1,8,x=>[x,m.at(x).y+m.at(x).h*.7,z],x=>{const t=(x-x0)/(x1-x0),pk=Math.pow(Math.max(0,1-Math.abs(t*2-1)),.65);return[x+lean*pk,m.at(x).y+m.at(x).h*.7+h*pk,z]},v=>mixC(col0,col1,v),bone);
 
-/* ----- the 15 species ----- */
+/* ----- extra species that only the 3D game has ----- */
+Object.assign(SP,{
+ giga:{name:"Giganoto\u00ADsaurus",meat:true,col:{dark:"#2f2a27",mid:"#5f544a",belly:"#ada08a",far:"#262220",stripe:"rgba(20,14,10,.5)",horn:"#3a2a1e"}},
+ bary:{name:"Baryonyx",meat:true,col:{dark:"#2b3a32",mid:"#566b52",belly:"#bcb48e",far:"#232f28",stripe:"rgba(12,24,14,.5)",crest:"#7a4a2a",claw:"#e8dcc2"}},
+ utah:{name:"Utahraptor",meat:true,col:{dark:"#2a2420",mid:"#62492f",belly:"#c0a378",far:"#201b18",stripe:"rgba(20,12,6,.6)",feather:"#1c1612"}},
+ diplo:{name:"Diplodocus",meat:false,col:{dark:"#463e33",mid:"#7a6d57",belly:"#bcae8e",far:"#3a332a"}},
+ styra:{name:"Styraco\u00ADsaurus",meat:false,col:{dark:"#3a3226",mid:"#6c5a40",belly:"#aa9a7c",far:"#2f281e",frill:"#7a3a24",frill2:"#d4904c",horn:"#ece2c8"}},
+});
+PLAYABLE.splice(PLAYABLE.indexOf("carno")+1,0,"giga","bary","utah");PLAYABLE.push("diplo","styra");
+MEATS.push("giga","bary","utah");HERBS.push("diplo","styra","styra");
+
+/* ----- the species ----- */
 const SPEC={
  trex:()=>biped("trex",{stripe:true,open:.6,
   body:[[-70,54,.5,.5],[-56,54,3,3],[-40,54,6,6],[-25,52,10,9],[-12,50,14,13],[0,49,17,16.5],[12,49,15,15],[21,55,10.5,10.5],[28,60,8.5,9]],tail:[4,3,2],neck:[6,7],
@@ -305,4 +316,43 @@ const SPEC={
   leg:{hip:[-2,44,6],knee:[6,30],ankle:[-3,14],ball:[3,1],r:[6.6,3.2,1.9,1.6],toe:5,claw:false},
   arm:{sh:[10,46,5],el:[15,40],hand:[19,40],r:[1.8,1.3],claws:3,cl:2.4},
   extra:m=>{const f=col3(SP.galli.col.feather);for(let x=-56;x<10;x+=3.6){const a=m.at(x);m.cone("skin",m.boneX(x),[x,a.y+a.h*.7,0],[x-4,a.y+a.h+2.4,0],1,f,4)}}}),
+ giga:()=>biped("giga",{stripe:true,open:.62,
+  body:[[-74,54,.5,.5],[-60,54,3,3],[-44,54,6,6],[-28,52,10,9],[-13,50,14,13],[0,49,16.5,16],[12,49,14.5,14.5],[21,55,10,10],[28,60,8,8.6]],tail:[4,3,2],neck:[6,7],
+  skull:[[24,62,6.6,7.6],[34,64.5,7.6,8],[46,63.6,6.6,6.6],[56,60.6,5,4.6],[64,58.4,3.4,3.2],[67.5,57.6,1.6,1.6]],jaw:{h:[28,55.4],pts:[[27,54.6,5.8,3.6],[40,52.2,5.2,3.2],[54,52.8,4,2.4],[63,54.8,2.6,1.6],[66.5,55.6,1.2,.8]]},
+  teeth:{x0:33,x1:64,y:56.4,z0:5.8,z1:2.6,len:4.4,ts:3.2},eye:[42,66.6,6.2,2],
+  leg:{hip:[-2,44,10],knee:[8,27],ankle:[-3,12],ball:[3,1.5],r:[9.4,5.2,3.5,3],toe:8,claw:true},
+  arm:{sh:[18,44,9],el:[24,36],hand:[30,35],r:[2.8,2],claws:3,cl:3.8},
+  extra:m=>{const d=m.c.dark.clone().multiplyScalar(.8);for(let i=0;i<7;i++)for(const s of[1,-1])m.ell("skin","head",[30+i*4.4,70.6-i*.8-Math.max(0,i-3)*.9,s*4.4],[1.8,1.1,1.3],d,null,6);
+   for(let x=-60;x<20;x+=4){const a=m.at(x);m.cone("skin",m.boneX(x),[x,a.y+a.h*.8,0],[x-1,a.y+a.h+2.2,0],1.6,d,5)}}}),
+ bary:()=>biped("bary",{stripe:true,open:.55,
+  body:[[-74,48,.5,.5],[-60,48,3,3.6],[-44,47,6,6.4],[-28,46,9,8.6],[-13,45,12,11],[0,45,14,12.6],[12,47,12,11.6],[22,54,7.6,7.6],[30,59,6,6.4]],tail:[4,3,2],neck:[6,7],
+  skull:[[27,60,5.4,6],[35,62,4.8,5],[46,60.6,3.4,3.4],[56,59,2.8,2.8],[63,58.4,3,2.4],[66.5,57.6,1.4,1.2]],jaw:{h:[31,56],pts:[[29,55.6,4.4,2.4],[42,54.4,3,1.8],[55,54.8,2.4,1.5],[63,55.6,2.4,1.4],[66,56.2,1,.7]]},
+  teeth:{x0:37,x1:64.5,y:57,z0:3.2,z1:2.2,len:3,ts:2.6},eye:[37,63.4,4.4,1.9],
+  leg:{hip:[-2,40,9],knee:[7,25],ankle:[-3,11],ball:[3,1.5],r:[8,4.6,3.1,2.7],toe:7,claw:true},
+  arm:{sh:[16,43,8],el:[23,34],hand:[29,32],r:[3.4,2.6],claws:2,cl:3},
+  extra:m=>{m.ell("acc","head",[41,64.6,0],[5,2.2,1.1],col3(SP.bary.col.crest),null,10);
+   for(const s of[1,-1])m.loft("bone",[[29,32,s*9,1.3,1.5],[34,31,s*9.6,1,1.1],[37,26,s*9.8,.6,.7],[35,22,s*9.8,.1,.1]],{bone:"arm"+(s>0?"L":"R"),rs:6,sub:2,color:()=>col3(SP.bary.col.claw)})}}),
+ utah:()=>biped("utah",{stripe:true,open:.65,
+  body:[[-70,50,.4,.4],[-56,50,2.4,2.6],[-40,48,4.4,4.4],[-26,46,7,6.4],[-12,43,10,9.4],[0,41,12.4,12],[10,44,10,10],[18,53,6,6.4],[23,57,5.2,5.6]],tail:[4,3,2],neck:[6,7],
+  skull:[[20,59,5,5.6],[28,61,5.2,5.6],[37,59,3.8,3.8],[44,56.6,2.4,2.2],[47,56,1,1]],jaw:{h:[24,55.6],pts:[[23,55.4,4.2,2.4],[33,53.6,3.4,2],[43,54.8,2,1.2],[46,55.4,.8,.6]]},
+  teeth:{x0:29,x1:45,y:56,z0:3.4,z1:1.6,len:3,ts:2.6},eye:[30,61.6,4.2,2],
+  leg:{hip:[0,37,8],knee:[7,23],ankle:[-2,10],ball:[3,1],r:[7.4,4.2,2.6,2.2],toe:6,claw:true,sickle:true},
+  arm:{sh:[12,42,7],el:[20,35],hand:[27,35],r:[2.8,2],claws:3,cl:4},
+  extra:m=>{const f=col3(SP.utah.col.feather),f2=col3("#7a2c18");for(let x=-66;x<22;x+=2.8){const a=m.at(x);for(const an of[0,.5,-.5])m.cone("skin",m.boneX(x),[x,a.y+a.h*Math.cos(an)*.8,a.w*Math.sin(an)*.8],[x-4.6,a.y+a.h*Math.cos(an)+3,a.w*Math.sin(an)*1.2],1.2,x>8?f2:f,4)}
+   for(const s of[1,-1])for(let i=0;i<6;i++)m.cone("skin","arm"+(s>0?"L":"R"),[13+i*2.6,40-i*.9,s*7.6],[10+i*2.6,31-i,s*8.6],1,f,4)}}),
+ diplo:()=>quad("diplo",{open:.25,
+  body:[[-84,38,.4,.4],[-70,42,2,2],[-54,48,5,5],[-34,55,11,11],[-15,59,16,16],[2,57,15,15],[14,56,10,10],[26,62,6.6,6.6],[38,70,5,5],[48,76,4,4],[54,78,3.6,3.6]],tail:[3,2,1],neck:[6,8],
+  skull:[[52,78.4,3.2,3.4],[58,78.6,3.6,3.2],[64,77,2.6,2.2],[67.6,76,1.4,1.2]],jaw:{h:[56,75.6],pts:[[55,75.6,2.8,1.2],[65,75,1.4,.8]]},eye:[57,79.6,3.4,1],
+  back:{hip:[-16,54,12],knee:[-14,27],foot:[-16,0],r:[12,8,6.4]},front:{hip:[10,49,10],knee:[12,25],foot:[12,0],r:[9,7,6]},
+  extra:m=>{const d=m.c.dark;for(let x=-60;x<48;x+=3.4){const a=m.at(x);m.cone("skin",m.boneX(x),[x,a.y+a.h*.85,0],[x,a.y+a.h+1.8,0],1.4,d,4)}}}),
+ styra:()=>quad("styra",{open:.3,
+  body:[[-58,30,.5,.5],[-46,34,4,4],[-32,38,8.6,8],[-18,40,15,14],[-2,41,19,18],[14,40,16,15],[24,38,11.6,11.6],[30,38,9.6,9.6]],tail:[3,2,1],neck:[5,6],
+  skull:[[26,40,8.6,9.6],[36,38,8.2,8.6],[46,33.5,5.8,6.6],[53,28,3.4,3.8],[56.5,25,1.4,1.4]],jaw:{h:[32,30],pts:[[31,30,5.8,3],[42,26,4.4,3],[50,24,2.6,1.7],[53.5,24,1,1]]},eye:[37,42,7,1.8],
+  back:{hip:[-16,32,12],knee:[-14,16],foot:[-17,0],r:[10.6,7,6]},front:{hip:[20,30,11],knee:[22,14],foot:[21,0],r:[8.6,6.4,5.4]},
+  extra:m=>{const c=SP.styra.col,f0=col3(c.frill2),f1=col3(c.frill),hc=col3(c.horn);
+   m.ell("acc","head",[24,47,0],[2.2,15,17],null,[0,0,.45],22,(x,y,z)=>mixC(f0,f1,Math.hypot(y,z)*1.1).multiplyScalar(x>0?1:.75));
+   for(let i=0;i<7;i++){const a=-1.15+i*(2.3/6),y=Math.cos(a)*14.4,z=Math.sin(a)*16.4,px=24-Math.sin(.45)*y,py=47+Math.cos(.45)*y,ln=i===0||i===6?13:20;
+     m.cone("bone","head",[px+.4,py,z],[px-Math.sin(.45)*ln*.9-2,py+Math.cos(.45)*ln,z*1.25],1.9,hc,7)}
+   m.cone("bone","head",[48,36,0],[54,60,0],2.8,hc,8);for(const s of[1,-1])m.cone("bone","head",[37,46,s*5],[38,49,s*6],1.4,hc,6);
+   m.cone("bone","head",[53.5,30,0],[58,24,0],2.2,col3("#2b261d"),6)}}),
 };
