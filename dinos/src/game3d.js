@@ -24,6 +24,7 @@ const sfx={
 
 /* ========================= plant eater special moves ========================= */
 const MOVES={
+ quetz:{name:"FLY",tip:"You fly over rocks, trees and water. Swoop down on dinos your size!",fast:1.15},
  nemi:{name:"FLY",tip:"You fly over rocks, trees and water. Swoop down on dinos your size!",fast:1.15},
  anky:{name:"TAIL CLUB",tip:"Smack dinos with your tail club. Small biters just bounce off your armor!",dmg:2,tail:true,knock:2,armor:true},
  stego:{name:"SPIKY TAIL",tip:"Your tail spikes hit twice as hard, and dinos that bite you get stabbed!",dmg:2,tail:true,knock:1.6,spikes:true},
@@ -49,6 +50,7 @@ let storeT=0;const store=()=>{clearTimeout(storeT);storeT=setTimeout(()=>{try{lo
 const bookOf=sp=>save.book[sp]||(save.book[sp]={played:0,beat:0,best:0});
 const UNLOCK={
  giga:{need:"Grow a T-Rex to size 10",test:s=>s.grown.trex},
+ quetz:{need:"Grow a Nemicolopterus to size 10",test:s=>s.grown.nemi},
  utah:{need:"Grow a Velociraptor to size 10",test:s=>s.grown.raptor},
  bary:{need:"Catch 10 fish",test:s=>s.fish>=10},
  diplo:{need:"Grow a Brachiosaurus to size 10",test:s=>s.grown.brachio},
@@ -403,7 +405,7 @@ const cardCvs=[];
 for(const sp of PLAYABLE){
   const b=document.createElement("button");b.className="card";b.setAttribute("aria-label",SP[sp].name.replace(/\u00AD/g,""));
   const c=document.createElement("canvas");c.width=360;c.height=240;b.append(c);
-  const n=document.createElement("b");n.textContent=SP[sp].name.replace(/\u00AD/g,"").replace(/(saurus|taurus|raptor|mimus|odon|ceratops|pterus)$/,"\u00AD$1");b.append(n);
+  const n=document.createElement("b");n.textContent=SP[sp].name.replace(/\u00AD/g,"").replace(/(saurus|taurus|raptor|mimus|odon|ceratops|pterus|coatlus)$/,"\u00AD$1");b.append(n);
   const d=document.createElement("span");d.className=SP[sp].meat?"meat":"plant";d.textContent=SP[sp].meat?"Meat eater":"Plant eater";b.append(d);
   if(MOVES[sp]){const mv=document.createElement("em");mv.className="move";mv.textContent=moveLabel(sp);b.append(mv)}
   if(UNLOCK[sp]){const nd=document.createElement("small");nd.className="need";nd.textContent=UNLOCK[sp].need+" to unlock";b.append(nd)}
@@ -421,7 +423,7 @@ const FACTS={trex:"The king of the dinosaurs. Its bite could crush bones.",spino
  stego:"Plates on its back and four sharp spikes on its tail.",pachy:"A thick bone dome on its head for head-butting.",igu:"Thumb spikes like little daggers.",
  theri:"Claws as long as your arm! It used them to grab leaves.",galli:"Ran like an ostrich. One of the fastest dinos.",diplo:"A whip tail longer than its neck.",
  styra:"A frill covered in long spikes, and a giant nose horn.",apato:"A huge, heavy long-neck. Its name means 'tricky lizard'.",
- argent:"Maybe the biggest animal ever to walk on land!",amarga:"Two rows of tall spikes down its neck."};
+ argent:"Maybe the biggest animal ever to walk on land!",amarga:"Two rows of tall spikes down its neck.",nemi:"Not a dinosaur but a flying reptile, as small as a sparrow!",quetz:"A flying reptile as tall as a giraffe, with wings as wide as a small plane!"};
 {const st=document.createElement("style");st.textContent=`.bookBtn{background:#3a3226;box-shadow:0 4px 0 #17130d;font-size:19px;padding:9px 22px}
 #book .bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;width:min(1000px,100%)}
 #book .bent{border:2px solid var(--edge);border-radius:16px;background:linear-gradient(#2b2418,#17130d);padding:8px;display:flex;flex-direction:column;gap:2px;align-items:center;text-align:center}
