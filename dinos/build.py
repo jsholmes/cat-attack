@@ -13,6 +13,6 @@ def block(a,b): return '\n'.join(lines[a-1:b])
 basics=block(124,156)   # basics + species
 ground=block(491,530)   # plantH, noise, ground colours, water, biome, chunk constants, mulberry
 assert basics.startswith('const TAU') and 'PLAYABLE' in basics and ground.startswith('const plantH') and 'mulberry' in ground.split('\n')[-1]
-out=head+'\n<script type="module">\nimport * as THREE from "./three.module.min.js";\n'+basics+'\n'+ground+'\n'+src('models.js')+'\n'+src('world3d.js')+'\n'+src('game3d.js')+'\n</script>\n</body>\n</html>\n'
+out=head+'\n<script type="module">\nimport * as THREE from "./three.module.min.js";\n'+basics+'\n'+ground+'\n'+src('models.js')+'\n'+src('world3d.js')+'\n'+src('game3d.js')+'\n'+src('net.js')+'\n</script>\n</body>\n</html>\n'
 open(os.path.join(here,'index.html'),'w').write(out)
 print(len(out))
