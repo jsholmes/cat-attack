@@ -1,0 +1,13 @@
+# Dino Attack multiplayer server: one Cloudflare Worker + one Durable Object per room (the default room is "world").
+name = "dino-attack-server"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+workers_dev = true
+
+[[durable_objects.bindings]]
+name = "WORLD"
+class_name = "World"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["World"]

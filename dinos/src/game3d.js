@@ -94,9 +94,9 @@ function slots(){
 }
 function populate(initial){
   const R0=viewR(),R1=R0*2.3,s=me.size;
-  world.dinos=world.dinos.filter(e=>{const d=dist(e,me);return d<R1*1.5&&!(d>R0*1.1&&e.size<s-3)});
-  world.plants=world.plants.filter(p=>{const d=dist(p,me);return d<R1*1.5&&!(d>R0*1.1&&p.size<s-3)});
-  world.fish=world.fish.filter(f=>{const d=dist(f,me);return d<R1*1.5&&!(d>R0*1.1&&f.size<s-3)&&!(f.dead&&f.dead<=0&&!f.meal)});
+  world.dinos=world.dinos.filter(e=>{const d=dist(e,me);return net.keep(e)||d<R1*1.5&&!(d>R0*1.1&&e.size<s-3)});
+  world.plants=world.plants.filter(p=>{const d=dist(p,me);return net.keep(p)||d<R1*1.5&&!(d>R0*1.1&&p.size<s-3)});
+  world.fish=world.fish.filter(f=>{const d=dist(f,me);return (net.keep(f)||d<R1*1.5&&!(d>R0*1.1&&f.size<s-3))&&!(f.dead&&f.dead<=0&&!f.meal)});
   {let have=0;for(const f of world.fish)if(!f.dead&&dist(f,me)<R1)have++;
     for(let tries=0;have<9&&tries<(initial?60:6);tries++){const an=rnd(TAU),rr=rnd(initial?len(s)*2:R0*1.05,R1),x=me.x+Math.cos(an)*rr,y=me.y+Math.sin(an)*rr;
       if(isWater(x,y)){const lo=Math.max(1,s-2),hi=Math.min(MAXS,s+1);spawnFish(lo+(Math.random()*(hi-lo+1)|0),x,y);have++}}}
@@ -128,6 +128,7 @@ function target(){
   return best
 }
 function catchFish(f){
+  if(f.remote)net.claim(f);
   save.fish=(save.fish||0)+1;checkUnlocks();
   f.dead=1;f.hurt=.3;sfx.chomp();burst(f.x,f.y,"#9fd0e0",14,fishLen(f.size)*.03,fishLen(f.size)*.2);
   if(me.kids.length){f.meal=true;f.dead=99;world.meals.push(f)}
@@ -150,6 +151,7 @@ function attack(want){
   hitDino(e,dmg,charged?3.4:(mv&&mv.knock)||1);
 }
 function hitDino(e,dmg,kn){
+  if(e.remote&&net.attack(e,dmg))return;
   e.dmg+=dmg;e.hurt=.25;sfx.hit();
   fx.push({k:"slash",x:e.x,y:e.y,h:len(e.size)*.45,t:.25,s:len(e.size)*.55,f:me.face});
   burst(e.x,e.y,"#8b1a10",8*dmg,len(e.size)*.02,len(e.size)*.35);
@@ -162,7 +164,7 @@ function hitDino(e,dmg,kn){
 }
 function honk(){
   const L=len(me.size);sfx.honk();fx.push({k:"honk",x:me.x,y:me.y,t:.8});say(me.x,me.y,"HONK!","#ffe08a",L*1.5);
-  for(const e of world.dinos){if(e.dying||e.size>me.size+1||dist(e,me)>L*7)continue;e.state="flee";e.angry=0;e.huntCd=10;e.scared=8;e.jaw=0}
+  for(const e of world.dinos){if(e.dying||e.player||e.size>me.size+1||dist(e,me)>L*7)continue;if(e.remote)net.claim(e);e.state="flee";e.angry=0;e.huntCd=10;e.scared=8;e.jaw=0}
 }
 function kill(e){
   bookOf(e.sp).beat++;store();
@@ -193,6 +195,7 @@ function eatPlantNear(fromClaw){
     const H=plantH(p.size);
     if(p.size>me.size){if(me.tooBigT<=0){say(p.x,p.y,"Too big! Grow first","#ffb08a",H);me.tooBigT=2}continue}
     if(p.meal)continue;
+    if(p.remote)net.claim(p);
     if(me.kids.length){p.meal=true;world.meals.push(p);me.jaw=1;sfx.munch();say(p.x,p.y,"Food for your babies!","#ff9ab2",H);return true}
     p.eaten=.6;me.jaw=1;sfx.munch();burst(p.x,p.y,"#5c9a32",14,len(p.size)*.02,H*.4);
     if(p.size===me.size){say(p.x,p.y,"MUNCH! +1","#bff08a",H);addFood()}else say(p.x,p.y,"munch (too small to count)","#d9cfb6",H);
@@ -246,7 +249,8 @@ function kidStep(dt){
         if(!(e.state==="hunt"||e.state==="wind"||(me.goal&&me.goal.o===e)||(e.dmg>0&&e.angry>0)))continue;const d=dist(e,k);if(d<bd){bd=d;foe=e}}
       if(foe){const dx=wd(foe.x-k.x),dy=wd(foe.y-k.y),d=Math.hypot(dx,dy)||1,reach=kL*.5+len(foe.size)*.45;k.fight=true;
         if(d<reach){k.vx*=.5;k.vy*=.5;k.mv=0;k.yaw=angTo(k.yaw,Math.atan2(dy,dx),dt*10);
-          if(k.cd<=0){k.cd=.9;k.jaw=1;k.atk=1;sfx.hit();foe.dmg++;foe.hurt=.3;burst(foe.x,foe.y,"#8b1a10",8,len(foe.size)*.02,len(foe.size)*.35);say(foe.x,foe.y,"TEEN ATTACK!","#ffb0c8",len(foe.size)*1.1);
+          if(k.cd<=0&&foe.remote&&net.attack(foe,1,true)){k.cd=.9;k.jaw=1;k.atk=1}
+          else if(k.cd<=0){k.cd=.9;k.jaw=1;k.atk=1;sfx.hit();foe.dmg++;foe.hurt=.3;burst(foe.x,foe.y,"#8b1a10",8,len(foe.size)*.02,len(foe.size)*.35);say(foe.x,foe.y,"TEEN ATTACK!","#ffb0c8",len(foe.size)*1.1);
             if(foe.size<=me.size||foe.dmg>=needed(foe))teenKill(foe);else{foe.kx=dx/d*kL*2;foe.ky=dy/d*kL*2;foe.stun=.4}}}
         else{const sp=pspeed(me.size)*1.3,kk=Math.min(1,dt*6);k.vx=lerp(k.vx,dx/d*sp,kk);k.vy=lerp(k.vy,dy/d*sp,kk);k.x=wrap(k.x+k.vx*dt);k.y=wrap(k.y+k.vy*dt);collide(k,kL);
           k.yaw=angTo(k.yaw,Math.atan2(k.vy,k.vx),dt*8);k.mv=1;k.ph+=dt*Math.hypot(k.vx,k.vy)/kL*5.5}
@@ -275,6 +279,7 @@ function kidStep(dt){
 function fishStep(dt){
   for(const f of world.fish){
     f.hurt=Math.max(0,f.hurt-dt);
+    if(f.remote)continue;
     if(f.dead){if(!f.meal)f.dead-=dt;continue}
     const fl=fishLen(f.size);f.t-=dt;
     const dx=wd(f.x-me.x),dy=wd(f.y-me.y),d=Math.hypot(dx,dy)||1;
@@ -381,7 +386,7 @@ function hud(){
 }
 function openPick(hatchling){game.state="pick";$("pickTitle").textContent=hatchling?"The egg hatched! Pick your hatchling":"Pick your dinosaur";show("pick")}
 function start(sp){
-  audio();game.run=(game.run||0)+1;game.lastSp=sp;world.dinos=[];world.fish=[];world.meals=[];world.plants=[];world.egg=null;fx.length=0;texts.length=0;
+  audio();game.run=(game.run||0)+1;game.lastSp=sp;world.dinos=[];world.fish=[];world.meals=[];world.plants=[];world.egg=null;fx.length=0;texts.length=0;net.reset();
   me=newPlayer(sp);world.players=[me];for(let k=0;k<40&&isWater(me.x,me.y);k++){me.x=rnd(W);me.y=rnd(W)}
   resize();cam.x=me.x;cam.y=me.y;cam.z=zoomFor(1);camL=len(1);camH=groundY(me.x,me.y,camL);
   populate(true);game.state="play";show(null);hud();
@@ -495,7 +500,7 @@ function step(dt){
   if(v>len(me.size)*.15&&me.atk<=0){me.yaw=angTo(me.yaw,Math.atan2(me.vy,me.vx),dt*9);me.face=Math.cos(me.yaw)>=0?1:-1}
   me.mv=clamp(v/(pspeed(me.size)*.5),0,1);me.ph+=dt*v/len(me.size)*5.5;
   if(!SP[me.sp].meat)eatPlantNear(false);
-  for(const e of world.dinos)aiStep(e,dt);
+  for(const e of world.dinos)if(!e.remote)aiStep(e,dt);
   world.dinos=world.dinos.filter(e=>!(e.state==="dead"&&e.dying<=0));
   for(const p of world.plants)if(p.eaten>0){p.eaten-=dt;if(p.eaten<=0)p.gone=true}
   world.plants=world.plants.filter(p=>!p.gone);
@@ -512,6 +517,7 @@ function frame(now){
   const dt=Math.min(.05,(now-last)/1000);last=now;
   fpsN++;fpsT+=dt;if(fpsT>=1){fps=fpsN/fpsT;fpsN=0;fpsT=0}
   if(game.state==="play")step(dt);
+  net.tick(dt);
   if(me&&game.state!=="pick"){
     for(let i=fx.length-1;i>=0;i--){const p=fx[i];p.t-=dt;if(p.vx!==undefined){p.x=wrap(p.x+p.vx*dt);p.y=wrap(p.y+p.vy*dt);p.h+=p.vh*dt;p.vh-=len(me.size)*4*dt;if(p.h<0){p.h=0;p.vh*=-.3;p.vx*=.6;p.vy*=.6}}if(p.t<=0)fx.splice(i,1)}
     for(let i=texts.length-1;i>=0;i--){texts[i].t-=dt;if(texts[i].t<=0)texts.splice(i,1)}
@@ -532,7 +538,7 @@ function animOf(e){return{ph:e.ph,mv:e.mv,jaw:e.jaw,atk:e.atk||0,angry:e.state==
 /* ========================= day and night ========================= */
 const DAY=240;let dayL=1;
 const DN={fogD:new THREE.Color("#8e9688"),fogN:new THREE.Color("#0e1522"),sunD:new THREE.Color(0xfff0d8),dusk:new THREE.Color(0xff9a50),moon:new THREE.Color(0x9ab4ff),skyD:new THREE.Color(0xcfe0f0),skyN:new THREE.Color(0x3a4a70),gD:new THREE.Color(0x4a3c26),gN:new THREE.Color(0x141820)};
-const dayPhase=()=>((game.t+DAY*.05)%DAY)/DAY;
+const dayPhase=()=>((net.clock()+DAY*.05)%DAY)/DAY;   // online, everyone shares the same time of day
 function daylight(){const p=dayPhase();if(p<.5)return 1;if(p<.6)return 1-(p-.5)/.1;if(p<.88)return 0;if(p<.98)return(p-.88)/.1;return 1}
 function dayNight(){
   dayL=daylight();const d=dayL;
@@ -576,6 +582,7 @@ function render3D(dt){
   // babies
   for(const k of me.kids){const Lk=kidLen(k)*clamp(k.born*2.5,0,1);if(Lk<1)continue;let I=k._i;if(!I||I.owner!==k||I.sp!==me.sp){if(I)relInst(I);I=k._i=getInst(me.sp,k);I.fade=1}I.stamp=stamp;
     place(I,k.x,k.y,Lk,k.yaw);pose(I,{ph:k.ph,mv:k.mv,jaw:k.jaw,atk:k.atk||0,angry:!!k.fight},t+3);setOpacity(I,1)}
+  net.render(t);
   for(const I of [...liveInst])if(I.stamp!==stamp)relInst(I);
   // target ring
   if(tgt){const Lt=tgt.ang!==undefined?fishLen(tgt.size):len(tgt.size);tgtRing.visible=true;tgtRing.position.set(wd(tgt.x-cam.x),groundY(tgt.x,tgt.y,Lt)+Lt*.02,wd(tgt.y-cam.y));tgtRing.scale.setScalar(Lt*.6);tgtRing.material.opacity=.55+.3*Math.sin(t*8)}else tgtRing.visible=false;
@@ -636,6 +643,7 @@ function overlay(){
     const ax=clamp(cw/2+Math.cos(an)*cw,m,cw-m-(Math.sin(an)>.3&&Math.cos(an)>.3?110:0)),ay=clamp(ch/2+Math.sin(an)*ch,Math.cos(an)<0?150:m+20,ch-m);
     c.save();c.translate(ax,ay);c.rotate(an);const pulse=1+.12*Math.sin(game.t*6);c.scale(pulse,pulse);
     c.fillStyle="#4aa8ff";c.strokeStyle="#fff";c.lineWidth=4;c.beginPath();c.moveTo(34,0);c.lineTo(-14,-24);c.lineTo(-4,0);c.lineTo(-14,24);c.closePath();c.stroke();c.fill();c.restore()}}
+  net.overlay(c);
   if(location.search.includes("fps")){c.fillStyle="#fff";c.font="14px monospace";c.textAlign="left";c.fillText(`${fps.toFixed(0)} fps  calls ${renderer.info.render.calls}  tris ${(renderer.info.render.triangles/1000).toFixed(0)}k`,12,ch-16)}
 }
 
