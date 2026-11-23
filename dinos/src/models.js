@@ -41,6 +41,8 @@ function loftGeo(ctrl,o){
   const sub=o.sub||3,RS=o.rs||12,P=catmull(ctrl,sub),N=P.length,R1=RS+1;
   const S=[0];for(let i=1;i<N;i++)S.push(S[i-1]+Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1],P[i][2]-P[i-1][2]));
   const pos=[],uv=[],col=[],skin=[],idx=[],t=new V3(),n=new V3(),b=new V3(),q=new V3();
+  // wrap the scale texture around the tube about as many times as it repeats along it, so scales stay round, not stretched
+  let circ=0;for(const p of P)circ+=Math.PI*(Math.max(.12,p[3])+Math.max(.12,p[4]));const vRep=Math.max(1,Math.round(circ/N/(o.uvs||14)));
   for(let i=0;i<N;i++){
     const p=P[i],pa=P[Math.max(0,i-1)],pb=P[Math.min(N-1,i+1)];
     t.set(pb[0]-pa[0],pb[1]-pa[1],pb[2]-pa[2]).normalize();
@@ -48,7 +50,7 @@ function loftGeo(ctrl,o){
     const w=Math.max(.12,p[3]),h=Math.max(.12,p[4]),sk=o.skin?o.skin(S[i],p):null;
     for(let j=0;j<=RS;j++){const th=j/RS*TAU,c=Math.cos(th),s=Math.sin(th);
       q.copy(n).multiplyScalar(c*h).addScaledVector(b,s*w);
-      pos.push(p[0]+q.x,p[1]+q.y,p[2]+q.z);uv.push(S[i]/(o.uvs||14),j/RS*(o.uvr||2));
+      pos.push(p[0]+q.x,p[1]+q.y,p[2]+q.z);uv.push(S[i]/(o.uvs||14),j/RS*(o.uvr||vRep));
       const cc=o.color(q.y/(q.length()||1),p,S[i],th);col.push(cc.r,cc.g,cc.b);if(o.skin)skin.push(sk)}
   }
   for(let i=0;i<N-1;i++)for(let j=0;j<RS;j++){const a=i*R1+j,b2=a+1,c=a+R1,d=c+1;idx.push(a,b2,c,b2,d,c)}
@@ -72,6 +74,11 @@ function finGeo(x0,x1,n,base,top,color,skinFn,rows=3){
   g.setIndex(idx);g.computeVertexNormals();if(skinFn)g.userData.skin=skin;return g}
 
 function hashf(x,y,z){const s=Math.sin(x*12.9898+y*78.233+z*37.719)*43758.5453;return s-Math.floor(s)}
+// smooth 3D value noise (0..1) for natural blotches and colour variation
+function vnoise3(x,y,z){const xi=Math.floor(x),yi=Math.floor(y),zi=Math.floor(z),fx=x-xi,fy=y-yi,fz=z-zi,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy),w=fz*fz*(3-2*fz);
+  const h=(a,b,c)=>hashf(xi+a,yi+b,zi+c),l=(a,b,t)=>a+(b-a)*t;
+  return l(l(l(h(0,0,0),h(1,0,0),u),l(h(0,1,0),h(1,1,0),u),v),l(l(h(0,0,1),h(1,0,1),u),l(h(0,1,1),h(1,1,1),u),v),w)}
+const fbm3=(x,y,z)=>vnoise3(x,y,z)*.65+vnoise3(x*2.1+5,y*2.1,z*2.1)*.35;
 
 class MB{
   constructor(sp){
@@ -84,7 +91,11 @@ class MB{
   skinColor(stripe){const c=this.c;return(oy,p,s,th)=>{
     let cc=oy>0?mixC(c.mid,c.dark,oy*1.35):mixC(c.mid,c.belly,-oy*1.5);
     if(stripe&&oy>-.15){const st=Math.sin(p[0]*.42+Math.sin(p[2]*.3+th)*.6);if(st>.45)cc.lerp(c.dark,.55).multiplyScalar(.8)}
-    const m=.88+.22*hashf(Math.round(p[0]*.6),Math.round(th*3),this.sp.length);return cc.multiplyScalar(m)}}
+    // blotchy camouflage, a darker stripe down the back, and fine colour variation
+    const sd=this.sp.length*7.3,x=p[0],y=p[1]+oy*3,z=p[2]+Math.sin(th)*3;
+    if(oy>-.35){const mt=fbm3(x*.085+sd,y*.085,z*.085);cc.lerp(c.dark,smooth(.48,.7,mt)*.7*(this.cs.plain?0:1)).lerp(c.belly,smooth(.5,.3,mt)*.12)}
+    if(oy>.7)cc.lerp(c.dark,(oy-.7)*1.3);
+    return cc.multiplyScalar(.9+.2*vnoise3(x*.5,y*.5+sd,z*.5))}}
   // chained skinning by arc length (for one continuous tube spanning several bones)
   chainSkin(ctrl,sub,chain,blend){
     const P=catmull(ctrl,sub),S=[0];for(let i=1;i<P.length;i++)S.push(S[i-1]+Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1],P[i][2]-P[i-1][2]));
@@ -119,9 +130,9 @@ class MB{
   fin(bucket,x0,x1,n,base,top,color,bone){
     const g=finGeo(x0,x1,n,base,top,color,bone==null?x=>this.skinX(x):null);this.k[bucket].add(g,bone==null?0:this.bi(bone))}
   // eye with slit pupil and an angry brow ridge
-  eye(e){const [x,y,z,r]=e;for(const s of[1,-1]){
-    this.ell("eye","head",[x,y,s*z],[r,r,r*.75],col3("#e0a030"),null,12);
-    this.ell("dark","head",[x+r*.22,y,s*(z+r*.62)],[r*.2,r*.78,r*.16],col3("#050302"),null,8);
+  eye(e){const [x,y,z,r0]=e,r=r0*.82;for(const s of[1,-1]){
+    this.ell("eye","head",[x,y,s*z],[r,r,r*.75],col3("#c27a1c"),null,14,(px,py,pz)=>mixC(col3("#e8b040"),col3("#7a3a10"),Math.hypot(px,py)*1.1));
+    this.ell("dark","head",[x+r*.2,y,s*(z+r*.62)],[r*.26,r*.74,r*.16],col3("#050302"),null,8);
     this.ell("skin","head",[x-r*.25,y+r*1.05,s*(z-r*.05)],[r*2.1,r*.62,r*1.05],this.c.dark,[0,0,-.12],10)}}
   done(kind,extra){
     const geos={};for(const k in this.k)geos[k]=this.k[k].geo(true);
@@ -186,9 +197,9 @@ function quad(sp,P){
   headParts(m,P);
   for(const s of[1,-1]){const nm=s>0?"L":"R";
     for(const [Lg,pre] of [[Bk_,""],[F,"f"]]){const z=Lg.hip[2]*s,[r0,r1,r2]=Lg.r,h=Lg.hip,k=Lg.knee,f=Lg.foot;
-      const pts=[[h[0],h[1]+r0*.7,z*.7,r0*.8,r0*.9],[h[0],h[1],z,r0,r0*1.1],[lerp(h[0],k[0],.5),lerp(h[1],k[1],.5),z,r0*.85,r0*.9],[k[0],k[1],z,r1,r1],[lerp(k[0],f[0],.5),lerp(k[1],f[1],.5),z,r1*.85,r1*.85],[f[0],f[1]+r2*.6,z,r2,r2],[f[0]+.5,f[1]+.4,z,r2*1.08,r2*.9]];
+      const pts=[[h[0],h[1]+r0*.7,z*.7,r0*.85,r0*.95],[h[0]-r0*.08,h[1],z,r0*1.05,r0*1.18],[lerp(h[0],k[0],.5),lerp(h[1],k[1],.5),z,r0*.82,r0*.92],[k[0],k[1],z,r1*.95,r1*1.02],[lerp(k[0],f[0],.5),lerp(k[1],f[1],.5),z,r1*.72,r1*.76],[f[0],f[1]+r2*1.1,z,r2*.86,r2*.88],[f[0]+.4,f[1]+r2*.45,z,r2*1.12,r2*.9],[f[0]+.6,f[1]+.4,z,r2*1.24,r2*.9]];
       m.loft("skin",pts,{chain:[[3,pre+"thigh"+nm,pre+"shin"+nm]],blend:3,rs:12});
-      for(let i=0;i<3;i++){const az=z+(i-1)*r2*.6;m.ell("bone",pre+"shin"+nm,[f[0]+r2*.85,r2*.28,az],[r2*.32,r2*.3,r2*.25],col3("#cdbf9e"),null,6)}}}
+      for(let i=0;i<3;i++){const az=z+(i-1)*r2*.6;m.ell("bone",pre+"shin"+nm,[f[0]+r2*1.12,r2*.14,az*1.05],[r2*.22,r2*.16,r2*.22],col3("#a89878"),null,8)}}}
   if(P.extra)P.extra(m);
   return m.done("quad",{open:P.open||.3,hipY:Bk_.hip[1]});
 }

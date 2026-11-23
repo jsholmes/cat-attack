@@ -1,11 +1,21 @@
 /* ========================= textures ========================= */
 function canvasTex(sz,draw,srgb){const c=document.createElement("canvas");c.width=c.height=sz;draw(c.getContext("2d"),sz);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=4;if(srgb)t.colorSpace=THREE.SRGBColorSpace;return t}
-// scales: raised bumps for the bump map
-const scaleTex=canvasTex(256,(g,S)=>{g.fillStyle="#555";g.fillRect(0,0,S,S);const R=mulberry(99);
-  for(let row=0;row<16;row++)for(let c=0;c<16;c++){const x=c*16+(row%2?8:0)+R()*3,y=row*16+R()*3,r=6.4+R()*2.4;
-    const gr=g.createRadialGradient(x-1.5,y-1.5,1,x,y,r);gr.addColorStop(0,"#d8d8d8");gr.addColorStop(.7,"#8a8a8a");gr.addColorStop(1,"#444");g.fillStyle=gr;
-    for(const ox of[-S,0,S])for(const oy of[-S,0,S]){g.beginPath();g.ellipse(x+ox,y+oy,r,r*.85,0,0,TAU);g.fill()}}
-  for(let k=0;k<900;k++){g.fillStyle=`rgba(0,0,0,${R()*.25})`;g.beginPath();g.arc(R()*S,R()*S,R()*1.6+.4,0,TAU);g.fill()}});
+// scales: small round scales with a few big bumpy ones and skin folds. The same pattern is drawn twice:
+// as a bump map (height) and as a colour map (dark cracks between the scales), so they line up.
+function scaleSheet(bump){return canvasTex(512,(g,S)=>{const R=mulberry(99);g.fillStyle=bump?"#3c3c3c":"#9a9a9a";g.fillRect(0,0,S,S);
+  const rows=26,cw=S/rows,sc=(x,y,r)=>{const gr=g.createRadialGradient(x-r*.3,y-r*.35,r*.1,x,y,r);
+    if(bump){gr.addColorStop(0,"#e4e4e4");gr.addColorStop(.7,"#9a9a9a");gr.addColorStop(1,"#3c3c3c")}else{gr.addColorStop(0,"#ffffff");gr.addColorStop(.65,"#ebebeb");gr.addColorStop(1,"#9a9a9a")}
+    g.fillStyle=gr;for(const ox of[-S,0,S])for(const oy of[-S,0,S]){g.beginPath();g.ellipse(x+ox,y+oy,r,r*.88,0,0,TAU);g.fill()}};
+  for(let row=0;row<rows;row++)for(let c=0;c<rows;c++)sc((c+(row%2?.5:0))*cw+R()*cw*.18,(row+.5)*cw+R()*cw*.18,cw*(.5+R()*.1));
+  for(let k=0;k<26;k++)sc(R()*S,R()*S,cw*(.9+R()*.5));
+  g.lineCap="round";for(let k=0;k<34;k++){let x=R()*S,y=R()*S;g.strokeStyle=bump?"rgba(20,20,20,.55)":"rgba(60,60,60,.35)";g.lineWidth=1.2+R()*1.6;g.beginPath();g.moveTo(x,y);
+    for(let s=0;s<6;s++){x+=R()*8-4;y+=8+R()*8;g.lineTo(x,y)}g.stroke()}
+  for(let k=0;k<1400;k++){g.fillStyle=`rgba(0,0,0,${R()*.18})`;g.beginPath();g.arc(R()*S,R()*S,R()*1.4+.3,0,TAU);g.fill()}})}
+const scaleTex=scaleSheet(true),scaleCol=scaleSheet(false);
+// a soft sky-and-ground picture the dinosaurs reflect, so their skin catches light like real skin
+const envTex=canvasTex(256,(g,S)=>{const gr=g.createLinearGradient(0,0,0,S);gr.addColorStop(0,"#9cc4ef");gr.addColorStop(.42,"#e8e4d6");gr.addColorStop(.5,"#c8b896");gr.addColorStop(.58,"#6e5c40");gr.addColorStop(1,"#2e281c");g.fillStyle=gr;g.fillRect(0,0,S,S);
+  const s=g.createRadialGradient(S*.3,S*.22,2,S*.3,S*.22,S*.16);s.addColorStop(0,"rgba(255,250,230,1)");s.addColorStop(1,"rgba(255,250,230,0)");g.fillStyle=s;g.fillRect(0,0,S,S)},true);
+envTex.mapping=THREE.EquirectangularReflectionMapping;envTex.wrapT=THREE.ClampToEdgeWrapping;
 // fine ground grain (multiplies the ground colour)
 const grainTex=canvasTex(256,(g,S)=>{g.fillStyle="#fff";g.fillRect(0,0,S,S);const R=mulberry(42);
   for(let k=0;k<5200;k++){const x=R()*S,y=R()*S,r=R()*1.8+.4;g.fillStyle=R()<.5?`rgba(255,250,235,${R()*.6})`:`rgba(0,0,0,${R()*.22})`;g.beginPath();g.arc(x,y,r,0,TAU);g.fill()}
@@ -136,11 +146,11 @@ function updateTerrain(D){
 const TPL={};
 function tpl(sp){if(TPL[sp])return TPL[sp];const T=SPEC[sp]();
   const bump=.9;
-  T.mats={skin:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.78,metalness:0,bumpMap:scaleTex,bumpScale:bump}),
-    bone:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.45}),
-    eye:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.15,emissive:new THREE.Color(0xff9a20),emissiveIntensity:.55}),
+  T.mats={skin:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.6,metalness:0,map:scaleCol,bumpMap:scaleTex,bumpScale:bump,envMap:envTex,envMapIntensity:.55}),
+    bone:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.4,envMap:envTex,envMapIntensity:.6}),
+    eye:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.08,envMap:envTex,envMapIntensity:1.2,emissive:new THREE.Color(0xff9a20),emissiveIntensity:.55}),
     dark:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.35}),
-    acc:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.7,side:THREE.DoubleSide,bumpMap:scaleTex,bumpScale:bump*.5})};
+    acc:new THREE.MeshStandardMaterial({vertexColors:true,roughness:.62,side:THREE.DoubleSide,map:scaleCol,bumpMap:scaleTex,bumpScale:bump*.5,envMap:envTex,envMapIntensity:.45})};
   T.inv=T.bones.map(b=>new THREE.Matrix4().makeTranslation(-b.p[0],-b.p[1],-b.p[2]));
   T.fly=!!SP[sp].fly;const bb=T.geos.skin.boundingBox;T.top=bb.max.y+(T.fly?55:0);T.box=bb;
   return TPL[sp]=T}
