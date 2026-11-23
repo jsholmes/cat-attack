@@ -404,16 +404,24 @@ $("againBtn").onclick=()=>start(game.lastSp);$("pickBtn").onclick=()=>openPick(f
 const cardCvs=[];
 for(const sp of PLAYABLE){
   const b=document.createElement("button");b.className="card";b.setAttribute("aria-label",SP[sp].name.replace(/\u00AD/g,""));
-  const c=document.createElement("canvas");c.width=360;c.height=240;b.append(c);
+  const c=document.createElement("canvas");c.width=480;c.height=320;b.append(c);
   const n=document.createElement("b");n.textContent=SP[sp].name.replace(/\u00AD/g,"").replace(/(saurus|taurus|raptor|mimus|odon|ceratops|pterus|coatlus)$/,"\u00AD$1");b.append(n);
   const d=document.createElement("span");d.className=SP[sp].meat?"meat":"plant";d.textContent=SP[sp].meat?"Meat eater":"Plant eater";b.append(d);
   if(MOVES[sp]){const mv=document.createElement("em");mv.className="move";mv.textContent=moveLabel(sp);b.append(mv)}
   if(UNLOCK[sp]){const nd=document.createElement("small");nd.className="need";nd.textContent=UNLOCK[sp].need+" to unlock";b.append(nd)}
-  b.onclick=()=>{if(isLocked(sp)){audio();sfx.ouch();banner("LOCKED",UNLOCK[sp].need+" to unlock the "+SP[sp].name.replace(/\u00AD/g,""),3);return}start(sp)};$("cards").append(b);cardCvs.push({c,sp,b,g:c.getContext("2d")});
+  b.onclick=()=>{if(isLocked(sp)){audio();sfx.ouch();lockedTap(b,sp);return}start(sp)};$("cards").append(b);cardCvs.push({c,sp,b,g:c.getContext("2d")});
 }
 let cardR=null,cardScene=null,cardCam=null,cardI={},cardN=0;
 {const st=document.createElement("style");st.textContent=`.card .move{font-style:normal;font-size:13px;font-weight:800;color:#ffd27a;line-height:1}.card .need{display:none;font-size:12.5px;font-weight:800;color:#e7a43a;line-height:1.15}
-.card.locked .need{display:block}.card.locked span,.card.locked .move{display:none}.card.locked b::before{content:"\\1F512  "}.card.locked{border-style:dashed}`;document.head.append(st)}
+.card.locked .need{display:block}.card.locked span,.card.locked .move{display:none}.card.locked b::before{content:"\\1F512  "}.card.locked{border-style:dashed}
+.card.locked canvas{filter:saturate(.6) brightness(.85)}.card.shake{animation:cshake .45s}@keyframes cshake{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+#toast{position:fixed;left:50%;bottom:max(24px,env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);z-index:60;max-width:min(92vw,560px);padding:14px 20px;border-radius:16px;background:#2b2418;border:2px solid var(--amber);color:var(--ink);font-weight:800;font-size:18px;text-align:center;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;box-shadow:0 8px 30px rgba(0,0,0,.6)}
+#toast.show{opacity:1;transform:translate(-50%,0)}#toast b{display:block;font-family:var(--display);font-weight:400;font-size:22px;color:var(--amber)}`;document.head.append(st);
+ const t=document.createElement("div");t.id="toast";document.body.append(t)}
+// a locked card can't start the game: shake it and say how to unlock it, above the pick screen
+let toastT=0;function lockedTap(b,sp){b.classList.remove("shake");void b.offsetWidth;b.classList.add("shake");
+  const t=$("toast");t.innerHTML="";const h=document.createElement("b");h.textContent="\u{1F512} "+SP[sp].name.replace(/\u00AD/g,"")+" is locked";t.append(h,UNLOCK[sp].need+" to unlock it!");
+  t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),3200)}
 /* ---- the dino book: every dinosaur you have played as or beaten ---- */
 const FACTS={trex:"The king of the dinosaurs. Its bite could crush bones.",spino:"The longest meat eater. It hunted fish in rivers.",raptor:"Small, fast and clever, with a big sickle claw on each foot.",
  allo:"A fast hunter with little horns above its eyes.",dilo:"Two thin crests on its head, like a fancy hat.",carno:"The bull-horned hunter. Super fast runner.",
@@ -444,9 +452,10 @@ function openBook(){
   $("bookCount").textContent=`You found ${found} of ${cardCvs.length} dinosaurs`;$("book").hidden=false;
 }
 function refreshCards(){for(const q of cardCvs){const L=isLocked(q.sp);if(q.b.classList.contains("locked")!==L){q.b.classList.toggle("locked",L);if(cardI[q.sp]){cardScene.remove(cardI[q.sp].g);delete cardI[q.sp]}}}}
+refreshCards(); // mark locked cards as soon as the pick screen is built
 function initCards(){
-  const oc=document.createElement("canvas");oc.width=360;oc.height=240;
-  cardR=new THREE.WebGLRenderer({canvas:oc,antialias:true,alpha:true,preserveDrawingBuffer:true});cardR.setSize(360,240,false);cardR.outputColorSpace=THREE.SRGBColorSpace;cardR.toneMapping=THREE.ACESFilmicToneMapping;
+  const oc=document.createElement("canvas");oc.width=480;oc.height=320;
+  cardR=new THREE.WebGLRenderer({canvas:oc,antialias:true,alpha:true,preserveDrawingBuffer:true});cardR.setSize(480,320,false);cardR.outputColorSpace=THREE.SRGBColorSpace;cardR.toneMapping=THREE.ACESFilmicToneMapping;
   cardR.shadowMap.enabled=true;
   cardScene=new THREE.Scene();cardScene.add(new THREE.HemisphereLight(0xe8f0ff,0x5a4630,1.4));
   const l=new THREE.DirectionalLight(0xfff0d8,2.8);l.position.set(-60,120,80);l.castShadow=true;l.shadow.camera.left=l.shadow.camera.bottom=-110;l.shadow.camera.right=l.shadow.camera.top=110;l.shadow.mapSize.set(512,512);cardScene.add(l);
@@ -456,16 +465,16 @@ function initCards(){
 }
 function drawCards(t){
   if(!cardR)initCards();
-  const n=cardCvs.length,per=cardN<n?n:3;
+  const n=cardCvs.length,per=3; // a few cards per frame, so the page stays quick to tap while the models are built
   for(let q=0;q<per;q++){const k=cardN++%n,{c,sp,g}=cardCvs[k];
     for(const s in cardI)cardI[s].g.visible=false;
-    let I=cardI[sp];if(!I){I=cardI[sp]=makeInst(sp);cardScene.add(I.g);if(isLocked(sp))for(const k in I.mats)if(k!=="eye"){I.mats[k].color.setScalar(.015);I.mats[k].emissive.setScalar(0)}}I.g.visible=true;
+    let I=cardI[sp];if(!I){I=cardI[sp]=makeInst(sp);cardScene.add(I.g);}I.g.visible=true;
     const T=I.T,bb=T.box,cx=(bb.min.x+bb.max.x)/2,cy=(bb.max.y)/2,hgt=bb.max.y,wid=bb.max.x-bb.min.x;
     I.g.rotation.y=-.55+Math.sin(t*.5+k)*.35;
     pose(I,{ph:t*2.2,mv:.35,jaw:SP[sp].meat?(Math.sin(t*1.3+k)>.55?1:0):0,atk:0,angry:SP[sp].meat},t);
     const D=Math.max(wid*.62,hgt*1.05)/Math.tan(16*Math.PI/180)*.62;
     cardCam.position.set(cx+D*.15,cy+D*.28,D);cardCam.lookAt(cx*.2,cy*.92,0);
-    cardR.render(cardScene,cardCam);g.clearRect(0,0,360,240);g.drawImage(cardR.domElement,0,0)}
+    cardR.render(cardScene,cardCam);g.clearRect(0,0,480,320);g.drawImage(cardR.domElement,0,0)}
 }
 
 /* ========================= effects ========================= */
