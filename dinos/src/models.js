@@ -199,7 +199,7 @@ function quad(sp,P){
     for(const [Lg,pre] of [[Bk_,""],[F,"f"]]){const z=Lg.hip[2]*s,[r0,r1,r2]=Lg.r,h=Lg.hip,k=Lg.knee,f=Lg.foot;
       const pts=[[h[0],h[1]+r0*.7,z*.7,r0*.85,r0*.95],[h[0]-r0*.08,h[1],z,r0*1.05,r0*1.18],[lerp(h[0],k[0],.5),lerp(h[1],k[1],.5),z,r0*.82,r0*.92],[k[0],k[1],z,r1*.95,r1*1.02],[lerp(k[0],f[0],.5),lerp(k[1],f[1],.5),z,r1*.72,r1*.76],[f[0],f[1]+r2*1.1,z,r2*.86,r2*.88],[f[0]+.4,f[1]+r2*.45,z,r2*1.12,r2*.9],[f[0]+.6,f[1]+.4,z,r2*1.24,r2*.9]];
       m.loft("skin",pts,{chain:[[3,pre+"thigh"+nm,pre+"shin"+nm]],blend:3,rs:12});
-      for(let i=0;i<3;i++){const az=z+(i-1)*r2*.6;m.ell("bone",pre+"shin"+nm,[f[0]+r2*1.12,r2*.14,az*1.05],[r2*.22,r2*.16,r2*.22],col3("#a89878"),null,8)}}}
+      for(let i=0;i<3;i++){const az=z+(i-1)*r2*.6;m.ell("bone",pre+"shin"+nm,[f[0]+r2*1.12,r2*.14,az*1.05],[r2*.22,r2*.16,r2*.22],col3("#5e5242"),null,8)}}}
   if(P.extra)P.extra(m);
   return m.done("quad",{open:P.open||.3,hipY:Bk_.hip[1]});
 }
@@ -233,6 +233,10 @@ function pteroWings(m,sp,span,sh){const c=SP[sp].col,w0=col3(c.wing),w1=col3(c.w
     m.loft("skin",arm,{bone:nm,rs:8,sub:2});
     for(let i=0;i<3;i++)m.cone("bone",nm,[15,sh+2,(48*k-2+i*1.4)*s],[19+i,sh,(48*k-1+i*1.6)*s],.5,m.boneCol,5)}}
 
+/* soft feathers lying back along the body, in rows around it (raptors) */
+function featherCoat(m,x0,x1,col,col2,xs){for(let x=x0;x<x1;x+=2.4){const a=m.at(x),bn=m.boneX(x),c=xs!=null&&x>xs?col2:col;
+  for(const an of[0,.45,-.45,.9,-.9]){const ca=Math.cos(an),sa=Math.sin(an),y0=a.y+a.h*ca*.85,z0=a.w*sa*.85;
+    m.cone("skin",bn,[x+1,y0,z0],[x-5.5,a.y+(a.h+1.4)*ca-.6,(a.w+1.4)*sa],Math.max(.9,a.h*.16),c.clone().multiplyScalar(.9+.2*hashf(x,an,1)),4)}}}
 /* ----- the species ----- */
 const SPEC={
  trex:()=>biped("trex",{stripe:true,open:.6,
@@ -248,15 +252,19 @@ const SPEC={
   leg:{hip:[-2,40,9],knee:[7,25],ankle:[-3,11],ball:[3,1.5],r:[8,4.6,3.2,2.7],toe:7,claw:true},
   arm:{sh:[16,44,8],el:[24,36],hand:[31,35],r:[3,2.1],claws:3,cl:4},
   extra:m=>{const c=m.cs,s0=col3(c.dark),s1=col3(c.sail),s2=col3(c.sail2);
-   m.fin("acc",-30,26,18,x=>[x,m.at(x).y+m.at(x).h*.75,0],x=>{const t=(x+30)/56;return[x-4,m.at(x).y+m.at(x).h*.75+2+40*Math.pow(Math.sin(Math.PI*t),.85),0]},(v,k)=>{const c2=v<.5?mixC(s0,s1,v*2):mixC(s1,s2,(v-.5)*2);return k%2?c2.multiplyScalar(.72):c2})}}),
+   m.fin("acc",-30,26,18,x=>[x,m.at(x).y+m.at(x).h*.75,0],x=>{const t=(x+30)/56;return[x-4,m.at(x).y+m.at(x).h*.75+2+40*Math.pow(Math.sin(Math.PI*t),.85),0]},(v,k)=>{const c2=v<.5?mixC(s0,s1,v*2):mixC(s1,s2,(v-.5)*2);return k%2?c2.multiplyScalar(.72):c2});
+   const pd=x=>Math.sin(Math.PI*(x+77)/52);
+   m.fin("acc",-77,-25,16,x=>[x,m.at(x).y+m.at(x).h*.6,0],x=>[x-1,m.at(x).y+m.at(x).h*.6+11*Math.pow(Math.max(0,pd(x)),.8),0],(v,k)=>mixC(s0,s1,v*.7).multiplyScalar(k%2?.8:1));
+   m.fin("acc",-77,-36,12,x=>[x,m.at(x).y-m.at(x).h*.6,0],x=>[x-1,m.at(x).y-m.at(x).h*.6-6*Math.pow(Math.max(0,Math.sin(Math.PI*(x+77)/41)),.8),0],()=>s0.clone())}}),
  raptor:()=>biped("raptor",{stripe:true,open:.65,
   body:[[-70,50,.4,.4],[-56,50,2,2.2],[-40,48,3.6,3.6],[-26,46,5.6,5.2],[-12,43,8,7.6],[0,40,10,10],[10,43,8,8],[18,52,4.6,5],[23,56,4,4.5]],tail:[4,3,2],neck:[6,7],
   skull:[[20,58,4,4.6],[27,60,4.3,4.6],[36,58,3,3.1],[43,56,1.8,1.7],[45.5,55.4,.8,.8]],jaw:{h:[23,55.4],pts:[[22,55,3.4,2],[32,53.6,2.8,1.6],[42,54.6,1.6,1],[44.5,55,.6,.5]]},
   teeth:{x0:28,x1:43,y:55.6,z0:2.7,z1:1.4,len:2.6,ts:2.6},eye:[30,60.4,3.4,1.8],
   leg:{hip:[0,36,7],knee:[7,23],ankle:[-2,10],ball:[3,1],r:[6,3.4,2.1,1.7],toe:5,claw:true,sickle:true},
   arm:{sh:[12,41,6],el:[19,35],hand:[26,35],r:[2.2,1.6],claws:3,cl:3.5},
-  extra:m=>{const f=col3(SP.raptor.col.feather);for(let x=-66;x<20;x+=3.2){const a=m.at(x);m.cone("skin",m.boneX(x),[x,a.y+a.h*.75,0],[x-4,a.y+a.h+3.2,0],1.1,f,4)}
-   for(const s of[1,-1])for(let i=0;i<4;i++)m.cone("skin","arm"+(s>0?"L":"R"),[14+i*3,38-i,s*6.6],[11+i*3,32-i,s*7.4],.9,f,4)}}),
+  extra:m=>{const f=col3(SP.raptor.col.feather);featherCoat(m,-66,20,f,f);
+   for(let i=0;i<5;i++)m.cone("skin","tail2",[-62+i,50,0],[-74-i*.8,50+(i-2)*1.6,(i-2)*3],1.2,f,4);
+   for(const s of[1,-1])for(let i=0;i<6;i++)m.cone("skin","arm"+(s>0?"L":"R"),[13+i*2.4,39-i,s*6.6],[8+i*2.6,30-i*.8,s*7.6],1.1,f,4)}}),
  allo:()=>biped("allo",{stripe:true,open:.58,
   body:[[-72,50,.5,.5],[-58,50,3,3.6],[-42,50,6,6],[-25,48,9,8.6],[-11,46,12,11],[0,45,14,13],[12,47,12,12],[20,54,8,8.6],[27,57,7,7.5]],tail:[4,3,2],neck:[6,7],
   skull:[[23,58.5,6,7],[31,61,6.6,7],[42,60.4,5.6,5.6],[52,57.2,4,4],[57,55.4,2,2]],jaw:{h:[26,53.6],pts:[[25,53,5,3],[36,50.6,4.5,3],[48,51.2,3.6,2.4],[55,53.2,2,1.4],[56.5,54,.8,.6]]},
@@ -271,7 +279,7 @@ const SPEC={
   leg:{hip:[0,38,7],knee:[7,24],ankle:[-2,10],ball:[3,1],r:[6.6,3.7,2.4,2],toe:5.5,claw:true},
   arm:{sh:[12,41,6],el:[20,33],hand:[26,35],r:[2.4,1.7],claws:3,cl:3},
   extra:m=>{const c0=col3(SP.dilo.col.crest),c1=col3(SP.dilo.col.crest2);
-   for(const s of[1,-1])m.fin("acc",27,47,8,x=>[x,62+3.6*Math.cos((x-36)/12),s*1.4],x=>{const t=(x-27)/20;return[x-2,66+14*Math.pow(Math.sin(Math.PI*Math.pow(t,.8)),.8),s*1.9]},(v,k)=>k%2?mixC(c0,c1,v).multiplyScalar(.78):mixC(c0,c1,v),"head")}}),
+   for(const s of[1,-1])m.fin("acc",26,47,10,x=>[x,63+3.4*Math.cos((x-36)/12),s*2.4],x=>{const t=(x-26)/21;return[x-1,66+10*Math.pow(Math.sin(Math.PI*Math.pow(t,.85)),.75),s*3.6]},(v,k)=>k%2?mixC(c0,c1,v).multiplyScalar(.8):mixC(c0,c1,v),"head")}}),
  carno:()=>biped("carno",{stripe:false,open:.6,
   body:[[-72,50,.5,.5],[-58,50,3,3.6],[-42,50,6,6],[-25,48,9,8.6],[-11,46,12,11],[0,45,14,13],[12,47,12,12],[20,54,8,8.6],[26,57,7,7.5]],tail:[4,3,2],neck:[6,7],
   skull:[[22,59,6.2,7.6],[30,62,6.6,7.2],[40,60.4,5.6,5.6],[46.5,57.2,4,4],[49,55.2,2,2]],jaw:{h:[25,54],pts:[[24,54,5,3.2],[34,51.6,4.5,3],[44,52.6,3.4,2.2],[48,54,1.4,1]]},
@@ -286,9 +294,9 @@ const SPEC={
   back:{hip:[-16,32,12],knee:[-14,16],foot:[-17,0],r:[11,7,6]},front:{hip:[20,30,11],knee:[22,14],foot:[21,0],r:[9,6.5,5.5]},
   extra:m=>{const c=SP.tri.col,f0=col3(c.frill2),f1=col3(c.frill),hc=col3(c.horn);
    m.ell("acc","head",[22,51,0],[2.6,22,22],null,[0,0,.4],24,(x,y,z)=>{const r=Math.hypot(y,z);return mixC(f0,f1,r*1.1).multiplyScalar(x>0?1:.75)});
-   for(let i=0;i<13;i++){const a=-1.35+i*(2.7/12),y=Math.cos(a)*21.5,z=Math.sin(a)*21.5;const px=22-Math.sin(.4)*y,py=51+Math.cos(.4)*y;m.cone("bone","head",[px+.5,py,z],[px-Math.sin(.4)*3.5,py+Math.cos(.4)*3.5,z*1.12],1.5,col3("#e7dcc0"),5)}
-   for(const s of[1,-1])m.cone("bone","head",[36,46,s*5],[62,64,s*9],2.5,hc,8);
-   m.cone("bone","head",[49,37,0],[52,46,0],1.7,hc,7);m.cone("bone","head",[53.5,30,0],[58,24,0],2.2,col3("#2b261d"),6)}}),
+   for(let i=0;i<17;i++){const a=-1.4+i*(2.8/16),y=Math.cos(a)*21.6,z=Math.sin(a)*21.6;const px=22-Math.sin(.4)*y,py=51+Math.cos(.4)*y;m.ell("acc","head",[px,py,z],[1.4,1.9,1.9],f1.clone().multiplyScalar(.8),null,7)}
+   for(const s of[1,-1])m.loft("bone",[[35,45,s*5,3.4,3.4],[44,52,s*6.6,2.6,2.6],[54,58,s*8,1.7,1.7],[63,61,s*8.8,.8,.8],[67,61.6,s*9,.15,.15]],{bone:"head",rs:9,sub:3,color:(oy,p)=>mixC(hc,col3("#3a3024"),smooth(50,67,p[0]))});
+   m.cone("bone","head",[49,37,0],[51.4,43.5,0],2.2,hc,7);m.cone("bone","head",[53.5,30,0],[58,24,0],2.2,col3("#2b261d"),6)}}),
  anky:()=>quad("anky",{open:.3,
   body:[[-56,26,.5,.5],[-46,28,3.5,3],[-34,30,7,6],[-21,30,18,13],[-2,31,25,15],[18,30,20,13],[28,30,12,10],[32,30,10,8]],tail:[3,2,1],neck:[5,6],
   skull:[[30,30,10,8],[38,29,9.6,7],[44,27,7,5],[47.5,25,4,3]],jaw:{h:[34,24],pts:[[33,24,7,2.5],[44,22,4,2],[46.5,22.5,2,1]]},eye:[37,31.5,8.6,1.6],
@@ -304,7 +312,8 @@ const SPEC={
   skull:[[28,28,4.6,4.6],[36,25,4,4],[44,23,2.5,2.6],[47.5,22,1,1]],jaw:{h:[31,23],pts:[[30,23,3.5,1.6],[42,21,2.2,1.2],[45.5,21.5,.8,.6]]},eye:[37,26.4,3.8,1.3],
   back:{hip:[-16,36,11],knee:[-12,18],foot:[-15,0],r:[11,7,5.5]},front:{hip:[18,26,10],knee:[20,12],foot:[20,0],r:[7,5,4.5]},
   extra:m=>{const c=SP.stego.col,p0=col3(c.plate),p1=col3(c.plate2),hc=col3(c.horn);
-   for(let i=0;i<10;i++){const xc=-48+i*7,z=i%2?1.6:-1.6,h=7+16*Math.sin(Math.PI*(i+.6)/10.6),w=3.8+1.6*Math.sin(Math.PI*(i+.5)/10);fsheet(m,xc-w,xc+w,h,w,z,p0,p1,null,-1.5)}
+   for(let i=0;i<13;i++){const xc=-52+i*5.6,z=i%2?2.2:-2.2,k=Math.sin(Math.PI*(i+.7)/13.4),h=6+19*k,w=3.6+4.4*k,x0=xc-w,x1=xc+w;
+     m.fin("acc",x0,x1,10,x=>[x,m.at(x).y+m.at(x).h*.72,z],x=>{const t=(x-x0)/(x1-x0),pk=Math.pow(Math.max(0,Math.sin(Math.PI*Math.pow(Math.min(1,t),1.15))),.95);return[x-2.2*pk,m.at(x).y+m.at(x).h*.72+h*pk,z*(1+pk*.3)]},(v,kk)=>mixC(p0,p1,v).multiplyScalar(kk%3===1?.82:1))}
    for(const s of[1,-1]){m.cone("bone","tail2",[-58,33,s*1.5],[-68,43,s*9],1.6,hc,6);m.cone("bone","tail2",[-63,32,s*1.4],[-72,38,s*10],1.5,hc,6)}}}),
  brachio:()=>quad("brachio",{open:.25,
   body:[[-66,44,.5,.5],[-53,48,3,3],[-39,54,7,7],[-22,58,15,14],[-6,62,17,17],[8,70,12,12],[16,84,7.5,7.5],[23,104,5.6,5.6],[29,122,4.6,4.6],[32,128,4,4]],tail:[3,2,1],neck:[5,7],
