@@ -252,12 +252,13 @@ const net=(()=>{
     nameMsg.textContent=text;nameMsg.style.color=col;
     inp.style.borderColor=kind==="bad"?"#ff6a4a":kind==="ok"||kind==="mine"?"#6ac04a":"var(--edge)";
     okBtn.disabled=kind==="bad"||kind==="wait"&&!cleanName(inp.value);okBtn.style.opacity=okBtn.disabled?.45:1;
-    okBtn.textContent=kind==="mine"?"✓":"OK";
+    okBtn.textContent="OK";okBtn.style.display=kind==="mine"?"none":""; // once the name is yours the OK button goes away; typing again brings it back
+    inp.style.background=kind==="mine"?"#1f3418":"";
   }
   function checkName(){
     const n=cleanName(inp.value);clearTimeout(checkT);clearTimeout(waitT);
     if(!n)return nameState("wait","Type your name, then tap OK");
-    if(myNow&&n.toLowerCase()===myNow.toLowerCase())return nameState("mine",`✓ You are ${myNow}!`);
+    if(myNow&&n.toLowerCase()===myNow.toLowerCase())return nameState("mine",`✓ You are ${myNow}! Tap the name to change it.`);
     if(!ready)return nameState("ok","✓ Looks good. Tap OK!");
     nameState("wait","Checking…");
     checkT=setTimeout(()=>{send({t:"nm",name:n});
@@ -269,7 +270,8 @@ const net=(()=>{
     const n=cleanName(inp.value);if(!n)return;inp.value=n;
     try{localStorage.setItem("dinoName",n)}catch(e){}
     inp.blur();
-    if(ready)send({t:"hi",name:n});else{myNow=n;nameState("mine",`✓ You are ${n}!`)}
+    // show it as chosen right away; if the server says someone else has it, its answer puts the right name back
+    myNow=n;nameState("mine",`✓ You are ${n}! Tap the name to change it.`);if(ready)send({t:"hi",name:n});
   }
   function gotName(m){ // the server's answer to a check ("nm") or to taking a name ("you")
     if(m.t==="you"){myNow=m.name;
@@ -286,7 +288,9 @@ const net=(()=>{
     inp=$("netName");okBtn=$("netOk");nameMsg=$("netNameMsg");pickLine=$("netLine");inp.value=myName();
     inp.addEventListener("keydown",e=>{e.stopPropagation();if(e.key==="Enter"){e.preventDefault();if(!okBtn.disabled)takeName()}});
     inp.addEventListener("input",checkName);
-    okBtn.addEventListener("click",e=>{e.preventDefault();takeName()});
+    // act as soon as the finger touches OK: on iPhones the first tap can otherwise just close the keyboard, the page shifts and the tap is lost
+    okBtn.addEventListener("pointerdown",e=>{e.preventDefault();if(!okBtn.disabled)takeName()});
+    okBtn.addEventListener("click",e=>{e.preventDefault();if(!okBtn.disabled)takeName()});
     checkName();
   }
   if(!off)connect();
