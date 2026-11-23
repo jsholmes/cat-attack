@@ -174,6 +174,7 @@ function kill(e){
   e.dying=1.4;e.state="dead";e.jaw=0;
   const counts=e.size>=me.size,H=len(e.size)*1.2;
   if(SP[me.sp].meat){
+    bookOf(e.sp).ate=(bookOf(e.sp).ate||0)+1;store();
     sfx.chomp();burst(e.x,e.y,"#a01c10",18,len(e.size)*.03,len(e.size)*.3);
     if(me.kids.length){e.meal=true;e.dying=.7;world.meals.push(e);say(e.x,e.y,"Food for your babies!","#ff9ab2",H)}
     else if(counts){say(e.x,e.y,"CHOMP! +1","#ffcf6a",H);addFood()}
@@ -200,7 +201,7 @@ function eatPlantNear(fromClaw){
     if(p.meal)continue;
     if(p.remote)net.claim(p);
     if(me.kids.length){p.meal=true;world.meals.push(p);me.jaw=1;sfx.munch();say(p.x,p.y,"Food for your babies!","#ff9ab2",H);return true}
-    p.eaten=.6;me.jaw=1;sfx.munch();burst(p.x,p.y,"#5c9a32",14,len(p.size)*.02,H*.4);
+    p.eaten=.6;me.jaw=1;sfx.munch();save.plants=(save.plants||0)+1;store();burst(p.x,p.y,"#5c9a32",14,len(p.size)*.02,H*.4);
     if(p.size===me.size){say(p.x,p.y,"MUNCH! +1","#bff08a",H);addFood()}else say(p.x,p.y,"munch (too small to count)","#d9cfb6",H);
     return true}
   return false;
@@ -376,7 +377,7 @@ const ray=new THREE.Raycaster(),ndc=new THREE.Vector2(),gplane=new THREE.Plane(n
 function groundPoint(p,y){ndc.set(p.x/cw*2-1,-(p.y/ch*2-1));ray.setFromCamera(ndc,camera);gplane.constant=-y;return ray.ray.intersectPlane(gplane,hitP)}
 
 /* ========================= UI ========================= */
-function show(id){for(const o of["pick","dead","paused"])$(o).hidden=o!==id;const playing=id===null;$("hud").hidden=!playing&&id!=="paused";$("menuBtn").hidden=!playing}
+function show(id){for(const o of["pick","dead","paused"])$(o).hidden=o!==id;const playing=id===null;$("hud").hidden=!playing&&id!=="paused";$("menuBtn").hidden=!playing;const gb=document.getElementById("bookBtnG");if(gb)gb.hidden=!playing}
 let bannerTimer=0;
 function banner(big,small,secs){const b=$("banner");b.innerHTML="";b.append(big);if(small){const s=document.createElement("small");s.textContent=small;b.append(s)}b.classList.add("show");clearTimeout(bannerTimer);bannerTimer=setTimeout(()=>b.classList.remove("show"),secs*1000)}
 const LEAF='<svg viewBox="0 0 16 16"><path d="M3 13C3 6 8 3 14 2c-1 6-4 11-11 11z" fill="#8fd062"/></svg>';
@@ -443,6 +444,9 @@ const FACTS={trex:"The king of the dinosaurs. Its bite could crush bones.",spino
  const bt=document.createElement("button");bt.className="btn bookBtn";bt.textContent="\u{1F4D6} Dino Book";bt.onclick=()=>openBook();$("pick").insertBefore(bt,$("cards"));
  const ov=document.createElement("div");ov.className="overlay";ov.id="book";ov.hidden=true;ov.innerHTML=`<h1>DINO <em>BOOK</em></h1><h2 id="bookCount"></h2><div class="bgrid" id="bgrid"></div><div class="btns"><button class="btn" id="bookClose">Back</button></div>`;document.body.append(ov);
  $("bookClose").onclick=()=>{$("book").hidden=true}}
+{const gb=document.createElement("button");gb.className="menu bookG";gb.id="bookBtnG";gb.hidden=true;gb.setAttribute("aria-label","Dino Book");gb.textContent="\u{1F4D6}";
+  gb.onclick=()=>{if(game.state==="play")togglePause();openBook()};document.body.append(gb);
+  const pb=document.createElement("button");pb.className="btn alt";pb.textContent="\u{1F4D6} Dino Book";pb.onclick=()=>openBook();$("paused").querySelector(".btns").append(pb)}
 function openBook(){
   const gr=$("bgrid");gr.innerHTML="";let found=0;
   for(const q of cardCvs){const sp=q.sp,bk=save.book[sp]||{played:0,beat:0,best:0},known=bk.played>0||bk.beat>0;if(known)found++;
@@ -450,9 +454,10 @@ function openBook(){
     try{c.getContext("2d").drawImage(q.c,0,0,180,120)}catch(e){}el.append(c);
     const n=document.createElement("b");n.textContent=known?SP[sp].name.replace(/­/g,""):"???";el.append(n);
     const f=document.createElement("i");f.textContent=known?FACTS[sp]||"":"Play as it or beat one to find out!";el.append(f);
-    if(known){const st=document.createElement("span");st.className="st";const bits=[];if(bk.played)bits.push(`Played ${bk.played}x, best size ${bk.best}`);if(bk.beat)bits.push(`Beaten ${bk.beat}x`);if(save.grown[sp])bits.push("⭐ Fully grown");st.textContent=bits.join(" · ");el.append(st)}
+    if(known){const st=document.createElement("span");st.className="st";const bits=[];if(bk.played)bits.push(`Played ${bk.played}x, best size ${bk.best}`);if(bk.beat)bits.push(`Beaten ${bk.beat}x`);if(bk.ate)bits.push(`Eaten ${bk.ate}x`);if(save.grown[sp])bits.push("⭐ Fully grown");st.textContent=bits.join(" · ");el.append(st)}
     gr.append(el)}
-  $("bookCount").textContent=`You found ${found} of ${cardCvs.length} dinosaurs`;$("book").hidden=false;
+  let ate=0;for(const s in save.book)ate+=save.book[s].ate||0;
+  $("bookCount").textContent=`You found ${found} of ${cardCvs.length} dinosaurs \u00B7 You ate ${ate} dinosaur${ate===1?"":"s"}, ${save.fish||0} fish and ${save.plants||0} plants`;$("book").hidden=false;
 }
 function refreshCards(){for(const q of cardCvs){const L=isLocked(q.sp);if(q.b.classList.contains("locked")!==L){q.b.classList.toggle("locked",L);if(cardI[q.sp]){cardScene.remove(cardI[q.sp].g);delete cardI[q.sp]}}}}
 refreshCards(); // mark locked cards as soon as the pick screen is built
