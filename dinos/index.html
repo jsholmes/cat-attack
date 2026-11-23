@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<!-- Dino Attack v4 (tap a dino to attack it; Space still works): one-player; Space is the claw (no on-screen button). The world, the dinos and the player are plain data in `world`, so a shared multiplayer world can be added later. -->
+<!-- Dino Attack v5 (11 playable dinosaurs; the egg hatches your own baby that follows you): one-player; Space is the claw (no on-screen button). The world, the dinos and the player are plain data in `world`, so a shared multiplayer world can be added later. -->
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -66,15 +66,16 @@ body{font-family:var(--body);touch-action:none;user-select:none;-webkit-user-sel
 .overlay h1 em{font-style:normal;color:var(--blood)}
 .overlay h2{margin:0;font-weight:800;font-size:clamp(20px,3.6vw,28px);color:var(--amber)}
 .overlay p{margin:0;font-size:17px;max-width:40ch;color:var(--dim)}
-.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;width:min(860px,100%)}
+.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;width:min(940px,100%)}
+@media (max-width:1000px) and (min-width:761px){.cards{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media (max-width:760px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .card{touch-action:manipulation;-webkit-appearance:none;appearance:none;border:2px solid var(--edge);border-radius:18px;background:linear-gradient(#2b2418,#17130d);color:var(--ink);padding:8px 8px 12px;font-family:var(--body);
   display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
 .card:active{transform:scale(.97)}
 .card:focus-visible,.btn:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
 .card canvas{width:100%;max-width:100%;aspect-ratio:3/2;display:block}
-@media (max-height:820px) and (min-width:761px){.cards{width:min(700px,100%)}}
-.card b{font-family:var(--display);font-weight:400;font-size:clamp(17px,2.4vw,23px);letter-spacing:.5px}
+@media (max-height:820px) and (min-width:761px){.cards{width:min(820px,100%)}}
+.card b{font-family:var(--display);font-weight:400;font-size:clamp(14px,2vw,20px);letter-spacing:.3px;overflow-wrap:anywhere;line-height:1.1}
 .card span{font-size:15px;font-weight:800}
 .card .meat{color:#e2654a}.card .plant{color:#8fd062}
 .btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
@@ -103,7 +104,7 @@ body{font-family:var(--body);touch-action:none;user-select:none;-webkit-user-sel
   <h1>DINO <em>ATTACK</em></h1>
   <h2 id="pickTitle">Pick your dinosaur</h2>
   <div class="cards" id="cards"></div>
-  <p class="help">Drag your finger to walk. Tap a dinosaur to attack it (or press the Space bar). Eat 3 that are your size to get a star and grow. Grow to size 10, then follow the arrow to the blue egg!</p>
+  <p class="help">Drag your finger to walk. Tap a dinosaur to attack it (or press the Space bar). Eat 3 that are your size to get a star and grow. Grow to size 10, then follow the arrow to the blue egg to get your own baby!</p>
 </div>
 
 <div class="overlay" id="dead" hidden>
@@ -141,11 +142,14 @@ const SP={
  raptor:{name:"Velociraptor",meat:true,col:{dark:"#45311d",mid:"#86643c",belly:"#c6a97c",far:"#372716",stripe:"rgba(36,22,8,.6)",feather:"#2b2116"}},
  stego:{name:"Stegosaurus",meat:false,col:{dark:"#343c27",mid:"#5b6643",belly:"#9b9c75",far:"#2b3120",plate:"#9c4b28",plate2:"#d68a45",horn:"#e3d7bb"}},
  brachio:{name:"Brachiosaurus",meat:false,col:{dark:"#3c423a",mid:"#666e60",belly:"#a3a694",far:"#323730"}},
+ allo:{name:"Allosaurus",meat:true,col:{dark:"#3e2a1c",mid:"#7a5436",belly:"#b39470",far:"#33231a",stripe:"rgba(30,14,6,.55)",horn:"#a8351f"}},
+ dilo:{name:"Dilophosaurus",meat:true,col:{dark:"#2f3a2a",mid:"#5a6a40",belly:"#b3ad7e",far:"#283122",stripe:"rgba(20,26,10,.55)",crest:"#c23f22",crest2:"#f0a040"}},
+ pachy:{name:"Pachycephalo\u00ADsaurus",meat:false,col:{dark:"#3e3426",mid:"#77654a",belly:"#b5a27e",far:"#332b20",dome:"#c9b48a",dome2:"#8a7350",horn:"#e3d7bb"}},
  para:{name:"Duckbill",meat:false,col:{dark:"#373c23",mid:"#686e40",belly:"#aaa97c",far:"#2e321d",crest:"#9e5a27",crest2:"#e0a050"}},
 };
-const PLAYABLE=["trex","spino","raptor","tri","anky","para"];
-const HERBS=["tri","anky","stego","brachio","para","tri","stego","para"];
-const MEATS=["trex","spino","raptor","raptor"];
+const PLAYABLE=["trex","spino","raptor","allo","dilo","tri","anky","para","brachio","stego","pachy"];
+const HERBS=["tri","anky","stego","brachio","para","pachy","tri","stego","para","pachy"];
+const MEATS=["trex","spino","raptor","raptor","allo","dilo"];
 
 /* ========================= drawing helpers ========================= */
 function seg(c,pts,ws,col){c.strokeStyle=col;c.lineCap="round";c.lineJoin="round";
@@ -334,7 +338,60 @@ function drawPara(c,col,a){
   seg(c,[[14,-42],[20,-30],[22,-14]],[4,3],col.mid);
   bleg(c,-4,-38,ph,st,13,col.mid,false);
 }
-const DRAW={trex:drawTrex,spino:drawSpino,raptor:drawRaptor,tri:drawTri,anky:drawAnky,stego:drawStego,brachio:drawBrachio,para:drawPara};
+/* ---------- Allosaurus ---------- */
+function drawAllo(c,col,a){
+  const ph=a.ph, st=a.mv*10, g=grad(c,-66,-30,col), wag=Math.sin(ph*.5)*2;
+  bleg(c,-6,-42,ph+Math.PI,st,11,col.far,true);
+  c.fillStyle=g;
+  c.beginPath();c.moveTo(-6,-56);c.quadraticCurveTo(-38,-58,-68,-50+wag);c.quadraticCurveTo(-38,-42,-6,-32);c.closePath();c.fill();
+  c.beginPath();c.ellipse(0,-45,25,13,-.06,0,TAU);c.fill();
+  c.beginPath();c.moveTo(12,-56);c.quadraticCurveTo(24,-62,30,-60);c.lineTo(30,-50);c.quadraticCurveTo(22,-42,16,-36);c.closePath();c.fill();
+  stripes(c,col,()=>{c.beginPath();c.ellipse(0,-45,25,13,-.06,0,TAU);c.rect(-60,-58,56,9)},[-46,-36,-26,-16,-6,4,12],-60,11);
+  seg(c,[[14,-42],[22,-34],[28,-36]],[4,3],col.far);
+  jawHead(c,col,a,{g,open:.55,pivot:[27,-53],skull:[[22,-62],[32,-66],[46,-64],[56,-59],[57,-54],[28,-53],[22,-56]],
+    jaw:[[26,-54],[55,-54],[53,-50],[38,-47],[27,-48]],tx0:31,tx1:55,ty:-54,ts:3.2,tl:3.4,eye:[38,-60,2],brow:[34,-63,42,-63],nose:[54,-58]});
+  c.fillStyle=col.horn;poly(c,[[34,-63],[37,-69],[41,-63]]);c.fill();
+  seg(c,[[16,-40],[24,-32],[30,-33]],[4.6,3.4],col.mid);c.strokeStyle="#e2d6b8";c.lineWidth=1.3;c.beginPath();c.moveTo(30,-33);c.lineTo(33,-30);c.stroke();
+  bleg(c,-2,-40,ph,st,13,col.mid,true);
+}
+/* ---------- Dilophosaurus ---------- */
+function drawDilo(c,col,a){
+  const ph=a.ph, st=a.mv*11, g=grad(c,-62,-30,col), wag=Math.sin(ph*.5)*2.5;
+  bleg(c,-4,-40,ph+Math.PI,st,9,col.far,true);
+  c.fillStyle=g;
+  c.beginPath();c.moveTo(-4,-52);c.quadraticCurveTo(-36,-54,-68,-48+wag);c.quadraticCurveTo(-36,-40,-4,-34);c.closePath();c.fill();
+  c.beginPath();c.ellipse(0,-43,21,11,-.1,0,TAU);c.fill();
+  c.beginPath();c.moveTo(10,-50);c.quadraticCurveTo(20,-62,26,-64);c.lineTo(28,-56);c.quadraticCurveTo(20,-46,14,-38);c.closePath();c.fill();
+  stripes(c,col,()=>{c.beginPath();c.ellipse(0,-43,21,11,-.1,0,TAU);c.rect(-56,-52,52,8)},[-46,-36,-26,-16,-6,4],-56,10);
+  const cg=c.createLinearGradient(0,-80,0,-66);cg.addColorStop(0,col.crest2);cg.addColorStop(1,col.crest);
+  c.fillStyle=cg;for(const dx of [0,3]){c.beginPath();c.moveTo(27+dx,-67);c.quadraticCurveTo(30+dx,-80,40+dx,-77);c.quadraticCurveTo(44+dx,-72,46+dx,-66);c.closePath();c.fill()}
+  c.strokeStyle="rgba(60,10,4,.5)";c.lineWidth=.8;for(let i=0;i<4;i++){c.beginPath();c.moveTo(31+i*3.5,-67);c.lineTo(32+i*3.5,-76+i*1.5);c.stroke()}
+  jawHead(c,col,a,{g,open:.6,pivot:[27,-61],skull:[[24,-68],[34,-69],[46,-65],[50,-61],[29,-60],[24,-63]],
+    jaw:[[27,-61],[49,-61],[47,-57],[29,-56]],tx0:31,tx1:49,ty:-61,ts:2.8,tl:2.8,eye:[33,-65,1.8],brow:[30,-68,36,-68],nose:[48,-63]});
+  seg(c,[[12,-40],[20,-33],[26,-35]],[3.6,2.6],col.mid);
+  bleg(c,0,-38,ph,st,10,col.mid,true);
+}
+/* ---------- Pachycephalosaurus ---------- */
+function drawPachy(c,col,a){
+  const ph=a.ph, st=a.mv*9, g=grad(c,-64,-28,col), hb=a.atk*6;
+  bleg(c,-6,-38,ph+Math.PI,st,10,col.far,false);
+  c.fillStyle=g;
+  c.beginPath();c.moveTo(-10,-50);c.quadraticCurveTo(-38,-52,-62,-44);c.quadraticCurveTo(-38,-38,-10,-32);c.closePath();c.fill();
+  c.beginPath();c.ellipse(-2,-42,22,13,-.05,0,TAU);c.fill();
+  c.save();c.translate(hb,hb*.4);
+  c.beginPath();c.moveTo(12,-48);c.quadraticCurveTo(20,-56,24,-58);c.lineTo(26,-50);c.quadraticCurveTo(20,-44,16,-36);c.closePath();c.fill();
+  c.fillStyle=g;poly(c,[[20,-58],[34,-58],[42,-52],[40,-46],[26,-46],[20,-50]]);c.fill();
+  const dg=c.createRadialGradient(27,-64,1,28,-57,12);dg.addColorStop(0,col.dome);dg.addColorStop(1,col.dome2);
+  c.fillStyle=dg;c.beginPath();c.ellipse(28,-55,11,10,0,Math.PI*.95,Math.PI*2.05);c.closePath();c.fill();
+  c.fillStyle=col.horn;for(let i=0;i<5;i++){const an=Math.PI+.25+i*.62;const x=28+Math.cos(an)*11.5,y=-54+Math.sin(an)*10.5;c.beginPath();c.arc(x,y,1.5,0,TAU);c.fill()}
+  for(const [x,y] of [[38,-50],[41,-48],[22,-50]]){c.beginPath();c.arc(x,y,1.3,0,TAU);c.fill()}
+  c.fillStyle="#3a3224";poly(c,[[40,-49],[44,-47],[40,-45]]);c.fill();
+  eye(c,31,-53,1.6,a.angry);
+  c.restore();
+  seg(c,[[12,-40],[18,-32],[22,-33]],[3.4,2.6],col.mid);
+  bleg(c,-2,-36,ph,st,12,col.mid,false);
+}
+const DRAW={allo:drawAllo,dilo:drawDilo,pachy:drawPachy,trex:drawTrex,spino:drawSpino,raptor:drawRaptor,tri:drawTri,anky:drawAnky,stego:drawStego,brachio:drawBrachio,para:drawPara};
 
 /* ---------- food plants (sizes 1..10) ---------- */
 function drawPlant(c,size,v){
@@ -470,7 +527,7 @@ const cam={x:0,y:0,z:1};
 let cw=0,ch=0,dpr=1;
 const cv=$("cv"),ctx=cv.getContext("2d");
 
-function newPlayer(sp){return{local:true,sp,size:1,food:0,x:rnd(W),y:rnd(W),vx:0,vy:0,face:1,ph:0,mv:0,cd:0,atk:0,jaw:0,dead:false,deadT:0,hurt:0,kx:0,ky:0,tooBigT:0}}
+function newPlayer(sp){return{local:true,kids:[],sp,size:1,food:0,x:rnd(W),y:rnd(W),vx:0,vy:0,face:1,ph:0,mv:0,cd:0,atk:0,jaw:0,dead:false,deadT:0,hurt:0,kx:0,ky:0,tooBigT:0}}
 function spawnDino(sp,size,x,y){const e={id:++world.uid,sp,size,x:wrap(x),y:wrap(y),face:Math.random()<.5?-1:1,vx:0,vy:0,ph:rnd(TAU),mv:0,state:"wander",wt:0,head:rnd(TAU),graze:false,
   dmg:0,stun:0,kx:0,ky:0,wind:0,rest:0,huntT:0,huntCd:rnd(1,3),jaw:0,dying:0,angry:0,scared:0,hurt:0};world.dinos.push(e);return e}
 function spawnPlant(size,x,y){world.plants.push({id:++world.uid,size,x:wrap(x),y:wrap(y),v:Math.random()*8|0,f:Math.random()<.5?-1:1,eaten:0})}
@@ -553,7 +610,7 @@ function grow(){
   if(me.dead||me.size>=MAXS||me.food<3)return;
   me.size++;me.food=0;sfx.star();
   for(let i=0;i<24;i++)fx.push({k:"star",x:me.x,y:me.y-len(me.size)*.4,vx:rnd(-1,1)*len(me.size)*2,vy:rnd(-1.6,.2)*len(me.size)*2,t:1.2});
-  if(me.size===MAXS){banner("FULLY GROWN!","Follow the blue arrow to the egg",4);placeEgg()}
+  if(me.size===MAXS){banner("FULLY GROWN!","Follow the blue arrow to the egg to get your baby",4);placeEgg()}
   else banner("★ SIZE "+me.size+" ★","You got a star and grew bigger!",2.2);
   hud();
 }
@@ -582,9 +639,30 @@ function die(e){
     show("dead")},1700);
 }
 function hatch(){
-  game.state="hatch";sfx.egg();world.egg.t=0;game.gen++;
-  banner("THE EGG IS HATCHING!","",2.4);
-  setTimeout(()=>{openPick(true)},2600);
+  const egg=world.egg;egg.hatching=1.6;egg.t=0;sfx.egg();banner("THE EGG IS HATCHING!","",1.8);
+}
+function eggHatched(){
+  const egg=world.egg;world.egg=null;
+  me.kids.push({x:egg.x,y:egg.y,vx:0,vy:0,face:me.face,ph:0,mv:0,jaw:0,born:0});
+  burst(egg.x,egg.y-len(MAXS)*.15,"#8cc8ff",22,len(MAXS)*.02);sfx.star();
+  banner("IT'S YOUR BABY!","Your baby follows you everywhere. Another egg is out there!",3.2);hud();
+  const run=game.run;setTimeout(()=>{if(game.run===run&&game.state!=="pick"&&!me.dead&&!world.egg)placeEgg()},12000);
+}
+const kidLen=()=>len(MAXS)*.4;
+function kidStep(dt){
+  const L=len(me.size),kL=kidLen();
+  me.kids.forEach((k,i)=>{
+    k.born+=dt;k.jaw=Math.max(0,k.jaw-dt*3);
+    // line up behind the parent, a little to the side, one behind another
+    const tx=me.x-me.face*(L*.55+kL*.6+i*kL*.85),ty=me.y+(i%2?1:-1)*kL*.18+kL*.05;
+    const dx=wd(tx-k.x),dy=wd(ty-k.y),d=Math.hypot(dx,dy);
+    if(d>L*14){k.x=wrap(tx);k.y=wrap(ty);return}
+    const sp=d<kL*.25?0:Math.min(pspeed(me.size)*1.25,d*3);
+    const kk=Math.min(1,dt*6);k.vx=lerp(k.vx,d?dx/d*sp:0,kk);k.vy=lerp(k.vy,d?dy/d*sp:0,kk);
+    k.x=wrap(k.x+k.vx*dt);k.y=wrap(k.y+k.vy*dt);
+    const v=Math.hypot(k.vx,k.vy);if(Math.abs(k.vx)>kL*.3)k.face=k.vx>0?1:-1;else if(v<kL*.2)k.face=me.face;
+    k.mv=clamp(v/(kL*2),0,1);k.ph+=dt*v/kL*5.5;
+  });
 }
 
 /* ========================= AI ========================= */
@@ -673,15 +751,15 @@ function hud(){
   $("hName").textContent=s.name;$("hSize").textContent=me.size>=MAXS?"fully grown!":`size ${me.size} of ${MAXS}`;
   let st="";for(let i=1;i<=MAXS;i++)st+=i<=me.size?"<i>★</i>":"☆";$("hStars").innerHTML=st;
   const f=$("hFood");
-  if(me.size>=MAXS){f.innerHTML='<span style="color:#8cc8ff">Find the blue egg!</span>'}
+  if(me.size>=MAXS){f.innerHTML=world.egg?'<span style="color:#8cc8ff">Find the blue egg!</span>':'<span style="color:#ff9ab2">♥ Your babies are with you</span>'}
   else{let h=`<span>${s.meat?"eat":"eat plants"}:</span>`;for(let i=0;i<3;i++)h+=`<span class="pip ${i<me.food?"on":""}">${s.meat?MEAT:LEAF}</span>`;f.innerHTML=h}
-  const g=$("hGen");g.hidden=game.gen<1;g.textContent=`Hatchlings found: ${game.gen}`;
+  const g=$("hGen"),nk=me.kids.length;g.hidden=nk<1;g.textContent=`Babies following you: ${nk}`;
 }
 function openPick(hatchling){
   game.state="pick";$("pickTitle").textContent=hatchling?"The egg hatched! Pick your hatchling":"Pick your dinosaur";show("pick");
 }
 function start(sp){
-  audio();game.lastSp=sp;world.dinos=[];world.plants=[];world.egg=null;fx.length=0;texts.length=0;
+  audio();game.run=(game.run||0)+1;game.lastSp=sp;world.dinos=[];world.plants=[];world.egg=null;fx.length=0;texts.length=0;
   me=newPlayer(sp);world.players=[me];
   resize();cam.x=me.x;cam.y=me.y;cam.z=zoomFor(1);
   populate(true);game.state="play";show(null);hud();
@@ -704,7 +782,8 @@ function drawCards(t){
   for(const {c,sp} of cardCvs){const g=c.getContext("2d");g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,c.width,c.height);
     const bg=g.createLinearGradient(0,0,0,240);bg.addColorStop(0,"#3a3122");bg.addColorStop(1,"#5b5034");g.fillStyle=bg;g.fillRect(0,0,360,240);
     g.fillStyle="rgba(0,0,0,.3)";g.beginPath();g.ellipse(170,212,120,14,0,0,TAU);g.fill();
-    g.translate(sp==="tri"||sp==="anky"?170:sp==="para"?175:sp==="raptor"?185:160,212);const k=sp==="anky"?3.5:sp==="spino"?2.5:sp==="raptor"?3.2:sp==="para"?2.6:2.75;g.scale(k,k);
+    const T={anky:[170,3.5],tri:[170,2.75],spino:[160,2.5],raptor:[185,3.2],para:[175,2.6],brachio:[200,1.38],stego:[180,2.9],allo:[175,2.75],dilo:[180,2.85],pachy:[180,2.8]}[sp]||[160,2.75];
+    g.translate(T[0],212);g.scale(T[1],T[1]);
     DRAW[sp](g,SP[sp].col,{ph:t*2,mv:.25,jaw:sp==="trex"||sp==="spino"?(Math.sin(t*1.3)>.6?1:0):0,atk:0,angry:false})}
 }
 
@@ -742,14 +821,16 @@ function step(dt){
   world.dinos=world.dinos.filter(e=>!(e.state==="dead"&&e.dying<=0));
   for(const p of world.plants)if(p.eaten>0){p.eaten-=dt;if(p.eaten<=0)p.gone=true}
   world.plants=world.plants.filter(p=>!p.gone);
-  if(world.egg){world.egg.t+=dt;if(dist(world.egg,me)<len(me.size)*.55+40)hatch()}
+  if(world.egg){const eg=world.egg;eg.t+=dt;
+    if(eg.hatching){eg.hatching-=dt;if(eg.hatching<=0)eggHatched()}
+    else if(dist(eg,me)<len(me.size)*.55+40)hatch()}
+  kidStep(dt);
   popT-=dt;if(popT<=0){popT=.3;populate(false)}
 }
 
 function frame(now){
   const dt=Math.min(.05,(now-last)/1000);last=now;
   if(game.state==="play")step(dt);
-  else if(game.state==="hatch"&&world.egg)world.egg.t+=dt;
   if(me){
     for(let i=fx.length-1;i>=0;i--){const p=fx[i];p.t-=dt;if(p.vx!==undefined){p.x=wrap(p.x+p.vx*dt);p.y=wrap(p.y+p.vy*dt);p.vy+=len(me.size)*3*dt}if(p.t<=0)fx.splice(i,1)}
     for(let i=texts.length-1;i>=0;i--){texts[i].t-=dt;if(texts[i].t<=0)texts.splice(i,1)}
@@ -794,6 +875,7 @@ function render(){
   for(const p of world.plants){const [x,y]=toScr(p.x,p.y);const h=plantH(p.size)*z;if(x<-h||x>cw+h||y<-20||y>ch+h)continue;list.push({y,fn:()=>drawPlantE(p,x,y,h)})}
   for(const e of world.dinos){const [x,y]=toScr(e.x,e.y);const L=len(e.size)*z*1.4;if(x<-L||x>cw+L||y<-20||y>ch+L*1.1)continue;list.push({y,fn:()=>drawDinoE(e,x,y,e===tgt)})}
   list.push({y:ch/2,me:true,fn:()=>drawMe()});
+  for(const k of me.kids){const [x,y]=toScr(k.x,k.y);const L=kidLen()*z;if(x<-L||x>cw+L||y<-20||y>ch+L*1.5)continue;list.push({y,fn:()=>drawKid(k,x,y,L)})}
   if(world.egg){const [x,y]=toScr(world.egg.x,world.egg.y);list.push({y,fn:()=>drawEgg(x,y)})}
   list.sort((a,b)=>a.y-b.y);
   const myTop=ch/2-mL*.9;let afterMe=false;
@@ -859,8 +941,15 @@ function drawMe(){
   if(me.dead){const f=clamp(me.deadT*2,0,1);c.translate(0,-L*.08*f);c.rotate(me.face*f*1.4)}
   c.scale(sc*me.face,sc);DRAW[me.sp](c,SP[me.sp].col,{ph:me.ph,mv:me.mv,jaw:Math.max(me.jaw,0),atk:me.atk,angry:me.atk>0});c.restore();
 }
+function drawKid(k,x,y,L){
+  const c=ctx,sc=L/100,pop=clamp(k.born*2.5,0,1);
+  c.strokeStyle="rgba(140,200,255,.5)";c.lineWidth=2;c.beginPath();c.ellipse(x,y,L*.45,L*.11,0,0,TAU);c.stroke();
+  drawShadow(x,y,L*.45);c.save();c.translate(x,y);c.scale(sc*k.face*pop,sc*pop);
+  DRAW[me.sp](c,SP[me.sp].col,{ph:k.ph,mv:k.mv,jaw:k.jaw,atk:0,angry:false});c.restore();
+  if(pop>=1){c.fillStyle="#ff7a9a";c.font=`${Math.round(clamp(L*.22,12,22))}px sans-serif`;c.textAlign="center";c.fillText("♥",x,y-L*(me.sp==="brachio"?1.4:.85)-4)}
+}
 function drawEgg(x,y){
-  const c=ctx,e=world.egg,s=len(MAXS)*.22*cam.z;const hatching=game.state==="hatch";
+  const c=ctx,e=world.egg,s=len(MAXS)*.22*cam.z;const hatching=!!e.hatching;
   const glow=c.createRadialGradient(x,y-s*.6,1,x,y-s*.6,s*2.2);glow.addColorStop(0,"rgba(90,180,255,.55)");glow.addColorStop(1,"rgba(90,180,255,0)");c.fillStyle=glow;c.beginPath();c.arc(x,y-s*.6,s*2.2,0,TAU);c.fill();
   drawShadow(x,y,s*.6);
   c.save();c.translate(x,y);if(hatching)c.rotate(Math.sin(e.t*28)*.12*Math.min(1,e.t));
