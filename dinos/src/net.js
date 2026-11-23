@@ -3,7 +3,7 @@
 // Your iPad moves your own dinosaur. Each wild dinosaur, plant and fish is run by the nearest player's iPad (its "owner"),
 // and everyone else sees a copy that glides smoothly to where the owner says it is. Attacking or eating something takes it over.
 // ?solo plays offline, ?room=name plays in a private world, ?server=wss://... uses another server.
-const NET_SERVER="wss://dino-attack-server.REPLACE_ME.workers.dev";
+const NET_SERVER="wss://dino-attack-server.prue-starfield-cloudflare.workers.dev";
 const net=(()=>{
   const Q=new URLSearchParams(location.search);
   const url=Q.get("server")||(NET_SERVER.includes("REPLACE_ME")?"":NET_SERVER);
