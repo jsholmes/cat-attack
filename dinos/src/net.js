@@ -50,7 +50,7 @@ const net=(()=>{
   }
   function sendMe(){
     if(!me)return;
-    const playing=game.state==="play"?1:game.state==="paused"||game.state==="dead"?2:0;
+    const playing=game.state==="play"?1:game.state==="dead"?2:0; // paused counts as away: others stop seeing you, so nobody can eat you while you are paused
     const kids=[];for(const k of me.kids){if(k.born<.4)continue;kids.push(r0(k.x),r0(k.y),r2(k.yaw),r0(kidLen(k)))}
     const R=viewR()*2.3*1.15;
     send({t:"p",s:[r0(me.x),r0(me.y),r0(R),me.dead?2:playing,r2(me.yaw),me.sp,me.size,r2(me.mv),r2(me.jaw),r2(me.atk),me.dead?1:0,r2(me.hurt),game.run||0,r0(me.vx),r0(me.vy),kids]});
@@ -234,7 +234,7 @@ const net=(()=>{
   function ui(){
     if(!panel){
       panel=document.createElement("div");panel.id="netPanel";
-      panel.style.cssText="position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:calc(max(12px,env(safe-area-inset-right,0px)) + 58px);background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:6px 12px 7px;pointer-events:none;font-size:14px;line-height:1.25;color:var(--dim);font-weight:600;min-width:120px";
+      panel.style.cssText="position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:calc(max(12px,env(safe-area-inset-right,0px)) + 124px);background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:6px 12px 7px;pointer-events:none;font-size:14px;line-height:1.25;color:var(--dim);font-weight:600;min-width:120px";
       document.body.append(panel);
     }
     panel.hidden=$("hud").hidden;

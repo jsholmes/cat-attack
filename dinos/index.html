@@ -83,6 +83,7 @@ body{font-family:var(--body);touch-action:none;user-select:none;-webkit-user-sel
 .btn{touch-action:manipulation;-webkit-appearance:none;appearance:none;font-family:var(--body);font-weight:800;font-size:22px;border:0;border-radius:16px;padding:12px 28px;background:var(--blood);color:#fff4e4;box-shadow:0 4px 0 #5e160b}
 .btn.alt{background:#3a3226;box-shadow:0 4px 0 #17130d}
 .help{font-size:15px;color:var(--dim);max-width:60ch}
+.menu{width:auto;height:52px;padding:0 16px;display:flex;align-items:center;gap:8px;font-family:var(--body);font-weight:800;font-size:18px;background:#3a3226;border:2px solid var(--amber);box-shadow:0 4px 0 #17130d}.menu span{font-size:16px;letter-spacing:-2px}
 </style>
 </head>
 <body>
@@ -95,7 +96,7 @@ body{font-family:var(--body);touch-action:none;user-select:none;-webkit-user-sel
   <div class="food" id="hFood"></div>
   <div class="gen" id="hGen" hidden></div>
 </div>
-<button class="menu" id="menuBtn" aria-label="Pause" hidden>&#10074;&#10074;</button>
+<button class="menu" id="menuBtn" aria-label="Pause" hidden><span>&#10074;&#10074;</span> Pause</button>
 <div class="banner" id="banner"></div>
 
 <div class="overlay" id="pick">
@@ -113,6 +114,7 @@ body{font-family:var(--body);touch-action:none;user-select:none;-webkit-user-sel
 
 <div class="overlay" id="paused" hidden>
   <h1>PAUSED</h1>
+  <h2 id="pauseNote">Everything stops until you tap Keep playing.</h2>
   <div class="btns"><button class="btn" id="resumeBtn">Keep playing</button><button class="btn alt" id="quitBtn">Pick a new dinosaur</button></div>
 </div>
 
@@ -1272,7 +1274,7 @@ function start(sp){
   bookOf(sp).played++;bookOf(sp).best=Math.max(bookOf(sp).best,1);store();
   banner(SP[sp].name.replace(/\u00AD/g,"").toUpperCase(),MOVES[sp]?"Special move, "+MOVES[sp].name+": "+MOVES[sp].tip:SP[sp].meat?"Meat eater: tap dinos your size to attack and eat them":"Plant eater: eat plants your size, tap a dino to fight it",4);
 }
-function togglePause(){if(game.state==="play"){game.state="paused";fingers.clear();show("paused")}else if(game.state==="paused"){game.state="play";show(null)}}
+function togglePause(){if(game.state==="play"){game.state="paused";fingers.clear();show("paused");$("pauseNote").textContent=net.on?"You are hidden from the other players while you are paused, so nobody can eat you. The world keeps going for them.":"Everything stops until you tap Keep playing."}else if(game.state==="paused"){game.state="play";show(null)}}
 $("menuBtn").onclick=togglePause;$("resumeBtn").onclick=togglePause;$("quitBtn").onclick=()=>openPick(false);
 $("againBtn").onclick=()=>start(game.lastSp);$("pickBtn").onclick=()=>openPick(false);
 
@@ -1592,7 +1594,7 @@ const net=(()=>{
   }
   function sendMe(){
     if(!me)return;
-    const playing=game.state==="play"?1:game.state==="paused"||game.state==="dead"?2:0;
+    const playing=game.state==="play"?1:game.state==="dead"?2:0; // paused counts as away: others stop seeing you, so nobody can eat you while you are paused
     const kids=[];for(const k of me.kids){if(k.born<.4)continue;kids.push(r0(k.x),r0(k.y),r2(k.yaw),r0(kidLen(k)))}
     const R=viewR()*2.3*1.15;
     send({t:"p",s:[r0(me.x),r0(me.y),r0(R),me.dead?2:playing,r2(me.yaw),me.sp,me.size,r2(me.mv),r2(me.jaw),r2(me.atk),me.dead?1:0,r2(me.hurt),game.run||0,r0(me.vx),r0(me.vy),kids]});
@@ -1776,7 +1778,7 @@ const net=(()=>{
   function ui(){
     if(!panel){
       panel=document.createElement("div");panel.id="netPanel";
-      panel.style.cssText="position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:calc(max(12px,env(safe-area-inset-right,0px)) + 58px);background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:6px 12px 7px;pointer-events:none;font-size:14px;line-height:1.25;color:var(--dim);font-weight:600;min-width:120px";
+      panel.style.cssText="position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:calc(max(12px,env(safe-area-inset-right,0px)) + 124px);background:var(--panel);border:1px solid var(--edge);border-radius:14px;padding:6px 12px 7px;pointer-events:none;font-size:14px;line-height:1.25;color:var(--dim);font-weight:600;min-width:120px";
       document.body.append(panel);
     }
     panel.hidden=$("hud").hidden;
