@@ -24,6 +24,7 @@ const sfx={
 
 /* ========================= plant eater special moves ========================= */
 const MOVES={
+ nemi:{name:"FLY",tip:"You fly over rocks, trees and water. Swoop down on dinos your size!",fast:1.15},
  anky:{name:"TAIL CLUB",tip:"Smack dinos with your tail club. Small biters just bounce off your armor!",dmg:2,tail:true,knock:2,armor:true},
  stego:{name:"SPIKY TAIL",tip:"Your tail spikes hit twice as hard, and dinos that bite you get stabbed!",dmg:2,tail:true,knock:1.6,spikes:true},
  tri:{name:"CHARGE",tip:"Tap a dino far away to charge it with your horns!",charge:true,knock:1.4},
@@ -402,7 +403,7 @@ const cardCvs=[];
 for(const sp of PLAYABLE){
   const b=document.createElement("button");b.className="card";b.setAttribute("aria-label",SP[sp].name.replace(/\u00AD/g,""));
   const c=document.createElement("canvas");c.width=360;c.height=240;b.append(c);
-  const n=document.createElement("b");n.textContent=SP[sp].name.replace(/\u00AD/g,"").replace(/(saurus|taurus|raptor|mimus|odon|ceratops)$/,"\u00AD$1");b.append(n);
+  const n=document.createElement("b");n.textContent=SP[sp].name.replace(/\u00AD/g,"").replace(/(saurus|taurus|raptor|mimus|odon|ceratops|pterus)$/,"\u00AD$1");b.append(n);
   const d=document.createElement("span");d.className=SP[sp].meat?"meat":"plant";d.textContent=SP[sp].meat?"Meat eater":"Plant eater";b.append(d);
   if(MOVES[sp]){const mv=document.createElement("em");mv.className="move";mv.textContent=moveLabel(sp);b.append(mv)}
   if(UNLOCK[sp]){const nd=document.createElement("small");nd.className="need";nd.textContent=UNLOCK[sp].need+" to unlock";b.append(nd)}
@@ -493,7 +494,7 @@ function step(dt){
     if(sd>10&&gp){const dx=gp.x,dy=gp.z,d=Math.hypot(dx,dy);if(d>0){mx=dx/d;my=dy/d;f=clamp(sd/110,.3,1)}}}
   else{const kx=(keys["arrowright"]||keys.d?1:0)-(keys["arrowleft"]||keys.a?1:0),ky=(keys["arrowdown"]||keys.s?1:0)-(keys["arrowup"]||keys.w?1:0);if(kx||ky){const d=Math.hypot(kx,ky);mx=kx/d;my=ky/d;f=1}}
   me.wet=isWater(me.x,me.y);
-  const sp=pspeed(me.size)*f*(me.wet?.6:1)*((MOVES[me.sp]&&MOVES[me.sp].fast)||1),k=Math.min(1,dt*8);
+  const sp=pspeed(me.size)*f*(me.wet&&!SP[me.sp].fly?.6:1)*((MOVES[me.sp]&&MOVES[me.sp].fast)||1),k=Math.min(1,dt*8);
   me.vx=lerp(me.vx,mx*sp,k);me.vy=lerp(me.vy,my*sp,k);
   me.x=wrap(me.x+(me.vx+me.kx)*dt);me.y=wrap(me.y+(me.vy+me.ky)*dt);me.kx*=.86;me.ky*=.86;collide(me,len(me.size));
   const v=Math.hypot(me.vx,me.vy);

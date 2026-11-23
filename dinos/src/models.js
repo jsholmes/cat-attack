@@ -208,8 +208,9 @@ Object.assign(SP,{
  argent:{name:"Argentino\u00ADsaurus",meat:false,col:{dark:"#4a3e34",mid:"#806a54",belly:"#c0ac8e",far:"#3e342c",armor:"#5a4a3a"}},
  amarga:{name:"Amarga\u00ADsaurus",meat:false,col:{dark:"#3e3428",mid:"#78603e",belly:"#bea67e",far:"#332a20",spine:"#9a4422",spine2:"#e8c89a"}},
 });
-PLAYABLE.splice(PLAYABLE.indexOf("carno")+1,0,"giga","bary","utah","ovi");PLAYABLE.push("diplo","styra","apato","argent","amarga");
-MEATS.push("giga","bary","utah","ovi");HERBS.push("diplo","styra","styra","apato","argent","amarga");
+Object.assign(SP,{nemi:{name:"Nemicolo\u00ADpterus",meat:true,fly:true,col:{dark:"#3a2a22",mid:"#7a5236",belly:"#dcc6a4",far:"#2e221c",wing:"#5e3420",wing2:"#d08850"}}});
+PLAYABLE.splice(PLAYABLE.indexOf("carno")+1,0,"giga","bary","utah","ovi","nemi");PLAYABLE.push("diplo","styra","apato","argent","amarga");
+MEATS.push("giga","bary","utah","ovi","nemi");HERBS.push("diplo","styra","styra","apato","argent","amarga");
 
 /* ----- the species ----- */
 const SPEC={
@@ -389,4 +390,18 @@ const SPEC={
    for(let x=5;x<=34;x+=2.6){const a=m.at(x),bn=m.boneX(x),t=(x-5)/29,h=6+16*Math.sin(Math.PI*Math.min(1,t*1.15));
      for(const s of[1,-1])m.loft("acc",[[x,a.y+a.h*.6,s*1.1,.9,.9],[x-3,a.y+a.h+h*.6,s*1.8,.55,.55],[x-6,a.y+a.h+h,s*2.4,.12,.12]],{bone:bn,rs:5,sub:2,color:(oy,p)=>mixC(s0,s1,(p[1]-a.y)/(a.h+h))})}
    for(let x=-30;x<4;x+=4){const a=m.at(x);m.cone("bone",m.boneX(x),[x,a.y+a.h*.8,0],[x-1,a.y+a.h+4,0],1.2,col3("#d8c8a4"),5)}}}),
+ // a tiny flying reptile (pterosaur): biped body plan plus two wings on their own bones that flap
+ nemi:()=>biped("nemi",{open:.35,
+  body:[[-34,30,.4,.4],[-28,30,1.6,1.6],[-20,30,4,4],[-10,31,7,7],[0,32,7.6,7.6],[8,34,6,6],[14,40,3.6,3.6],[19,46,3,3],[23,49,3,3]],tail:[3,2,1],neck:[5,6],
+  skull:[[22,50,3.6,4],[28,51,3.6,4.2],[36,49,2.4,2.6],[46,46,1.3,1.4],[52,44.6,.4,.5]],jaw:{h:[26,47.4],pts:[[25,47.4,3,1.4],[38,45.6,1.6,.9],[50,44.4,.4,.4]]},eye:[28,52,3.6,1.6],
+  leg:{hip:[-12,26,4],knee:[-18,16],ankle:[-24,8],ball:[-26,3],r:[3,1.6,1,.8],toe:3,claw:true},
+  extra:m=>{const c=SP.nemi.col,w0=col3(c.wing),w1=col3(c.wing2);
+   for(const s of[1,-1]){const nm="wing"+(s>0?"L":"R");m.bone(nm,"body",6,35,4*s);
+    const q=(a,b,cc,t)=>a.map((v,i)=>(1-t)*(1-t)*v+2*(1-t)*t*b[i]+t*t*cc[i]);
+    const tip=[-20,35,104*s],wr=[16,37,48*s],L2=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t),lead=u=>u<.45?L2([8,35,4*s],wr,u/.45):L2(wr,tip,(u-.45)/.55),trail=u=>q([-26,30,5*s],[-22,33,44*s],tip,u);
+    m.fin("acc",0,1,14,trail,lead,(v,k)=>mixC(w1,w0,.35+.65*v).multiplyScalar(.85+.3*Math.abs(Math.sin(k*1.7))),nm);
+    const arm=[];for(let i=0;i<=6;i++){const p=lead(i/6);arm.push([p[0],p[1]+.4,p[2],1.5*(1-i/7)+.2,1.5*(1-i/7)+.2])}
+    m.loft("skin",arm,{bone:nm,rs:8,sub:2});
+    for(let i=0;i<3;i++)m.cone("bone",nm,[15,37,(46+i*1.4)*s],[19+i,35,(47+i*1.6)*s],.5,m.boneCol,5)}
+   m.cone("bone","head",[40,48,0],[52.6,44.4,0],2.2,col3("#4a3a2a"),8)}}),
 };
