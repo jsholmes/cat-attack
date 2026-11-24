@@ -13,6 +13,8 @@ Pick from 15 dinosaurs (T-Rex, Spinosaurus, Velociraptor, Allosaurus, Dilophosau
 
 # Big Chomp (Dino Attack in 3D)
 
+See CLAUDE.md for how everything is built and deployed.
+
 The 3D game was renamed Big Chomp on 2026-11-23. It still lives at /dinos/.
 
 Since 2026-11-23 the main Dino Attack at /dinos/ is the 3D version: the same game drawn with Three.js, with 20 dinosaurs built as 3D models in code (the 15 from 2D plus Giganotosaurus, Baryonyx, Utahraptor, Diplodocus and Styracosaurus). Rocks, boulders and tree trunks are solid. Add `?fps` to the link to see the frame rate. The old 2D version is still at https://jsholmes.github.io/cat-attack/dinos-2d/, and the old /dinos-3d/ link redirects to /dinos/.
